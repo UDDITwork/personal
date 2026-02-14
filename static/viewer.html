@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PATMASTER Extraction Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .top-bar h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .metadata {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            font-size: 14px;
+        }
+
+        .metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .metadata-label {
+            opacity: 0.9;
+        }
+
+        .metadata-value {
+            font-weight: bold;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 4px;
+        }
+
+        /* Toggle Buttons */
+        .controls {
+            background: white;
+            padding: 15px 30px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        /* Split Screen Layout */
+        .content {
+            display: flex;
+            height: calc(100vh - 180px);
+        }
+
+        .left-panel, .right-panel {
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .left-panel {
+            flex: 1;
+            background: white;
+            border-right: 2px solid #e0e0e0;
+        }
+
+        .right-panel {
+            flex: 1;
+            background: #fafafa;
+        }
+
+        /* Text Content */
+        .text-section h2 {
+            color: #667eea;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+
+        .text-section h3 {
+            color: #764ba2;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .text-content {
+            white-space: pre-wrap;
+            line-height: 1.8;
+            font-size: 15px;
+        }
+
+        /* Images Grid */
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .image-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .image-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+
+        .image-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            background: #f0f0f0;
+        }
+
+        .image-info {
+            padding: 15px;
+        }
+
+        .image-title {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .diagram-description {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f8f8f8;
+            border-left: 3px solid #667eea;
+            border-radius: 4px;
+        }
+
+        .diagram-description h4 {
+            color: #764ba2;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .diagram-description pre {
+            white-space: pre-wrap;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .collapsible {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .collapsible::before {
+            content: '▼ ';
+            display: inline-block;
+            transition: transform 0.3s;
+        }
+
+        .collapsible.collapsed::before {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s;
+        }
+
+        .collapsible-content.hidden {
+            max-height: 0;
+        }
+
+        /* Tables */
+        .tables-section {
+            margin-top: 30px;
+        }
+
+        .table-container {
+            margin-bottom: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .table-container h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        /* Raw JSON View */
+        .raw-json {
+            display: none;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 30px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow: auto;
+            height: calc(100vh - 180px);
+        }
+
+        .raw-json.active {
+            display: block;
+        }
+
+        .split-view.hidden {
+            display: none;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Top Bar with Metadata -->
+        <div class="top-bar">
+            <h1>📄 PATMASTER Extraction Result</h1>
+            <div class="metadata">
+                <div class="metadata-item">
+                    <span class="metadata-label">File:</span>
+                    <span class="metadata-value" id="file-name">-</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Type:</span>
+                    <span class="metadata-value" id="file-type">-</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Pages:</span>
+                    <span class="metadata-value" id="total-pages">-</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Processing Time:</span>
+                    <span class="metadata-value" id="processing-time">-</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Confidence:</span>
+                    <span class="metadata-value" id="confidence">-</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Method:</span>
+                    <span class="metadata-value" id="extraction-method">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button class="btn btn-primary" id="toggle-json">Show Raw JSON</button>
+            <button class="btn btn-secondary" id="download-json">Download JSON</button>
+        </div>
+
+        <!-- Split View -->
+        <div class="content split-view">
+            <!-- Left Panel: Text -->
+            <div class="left-panel">
+                <div class="text-section">
+                    <h2>📝 Extracted Text</h2>
+                    <div class="text-content" id="extracted-text">Loading...</div>
+                </div>
+
+                <!-- Tables -->
+                <div class="tables-section" id="tables-section">
+                    <h2>📊 Extracted Tables</h2>
+                    <div id="tables-container"></div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Images and Diagrams -->
+            <div class="right-panel">
+                <h2 style="margin-bottom: 20px; color: #667eea;">🖼️ Images & Diagrams</h2>
+                <div class="images-grid" id="images-grid">
+                    <!-- Images will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Raw JSON View -->
+        <div class="raw-json" id="raw-json">
+            <pre id="json-content"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Extraction result data (injected by backend)
+        const extractionResult = {{EXTRACTION_RESULT_JSON}};
+
+        // Populate metadata
+        document.getElementById('file-name').textContent = extractionResult.file_name;
+        document.getElementById('file-type').textContent = extractionResult.file_type.toUpperCase();
+        document.getElementById('total-pages').textContent = extractionResult.total_pages || 'N/A';
+        document.getElementById('processing-time').textContent =
+            extractionResult.metadata?.processing_time_seconds
+            ? `${extractionResult.metadata.processing_time_seconds.toFixed(2)}s`
+            : 'N/A';
+        document.getElementById('confidence').textContent =
+            extractionResult.confidence_score
+            ? `${(extractionResult.confidence_score * 100).toFixed(1)}%`
+            : 'N/A';
+        document.getElementById('extraction-method').textContent =
+            extractionResult.metadata?.extraction_method || 'N/A';
+
+        // Populate extracted text
+        const textContent = extractionResult.extracted_text_markdown || extractionResult.extracted_text_plain;
+        document.getElementById('extracted-text').textContent = textContent || 'No text extracted';
+
+        // Populate images
+        const imagesGrid = document.getElementById('images-grid');
+        if (extractionResult.extracted_images && extractionResult.extracted_images.length > 0) {
+            extractionResult.extracted_images.forEach((image, index) => {
+                const imageCard = document.createElement('div');
+                imageCard.className = 'image-card';
+
+                // Find corresponding diagram description
+                const diagramDesc = extractionResult.diagram_descriptions?.find(
+                    desc => desc.image_id === image.image_id
+                );
+
+                imageCard.innerHTML = `
+                    <img src="data:image/png;base64,${image.image_base64}" alt="${image.image_id}">
+                    <div class="image-info">
+                        <div class="image-title">${image.image_id} (Page ${image.page_number})</div>
+                        ${diagramDesc ? `
+                            <div class="diagram-description">
+                                <h4 class="collapsible" onclick="toggleCollapse(this)">
+                                    Diagram Description (${diagramDesc.diagram_type || 'unknown'})
+                                </h4>
+                                <div class="collapsible-content">
+                                    <p><strong>Summary:</strong> ${diagramDesc.description_summary}</p>
+                                    ${diagramDesc.outermost_elements?.length > 0 ? `
+                                        <p><strong>Elements:</strong> ${diagramDesc.outermost_elements.join(', ')}</p>
+                                    ` : ''}
+                                    ${diagramDesc.connections?.length > 0 ? `
+                                        <p><strong>Connections:</strong></p>
+                                        <pre>${JSON.stringify(diagramDesc.connections, null, 2)}</pre>
+                                    ` : ''}
+                                    ${diagramDesc.all_text_labels?.length > 0 ? `
+                                        <p><strong>Labels:</strong> ${diagramDesc.all_text_labels.join(', ')}</p>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                imagesGrid.appendChild(imageCard);
+            });
+        } else {
+            imagesGrid.innerHTML = '<p style="padding: 20px; color: #888;">No images extracted</p>';
+        }
+
+        // Populate tables
+        const tablesContainer = document.getElementById('tables-container');
+        if (extractionResult.extracted_tables && extractionResult.extracted_tables.length > 0) {
+            extractionResult.extracted_tables.forEach(table => {
+                const tableDiv = document.createElement('div');
+                tableDiv.className = 'table-container';
+                tableDiv.innerHTML = `
+                    <h3>${table.table_id} (Page ${table.page_number})</h3>
+                    ${table.html_content}
+                `;
+                tablesContainer.appendChild(tableDiv);
+            });
+        } else {
+            document.getElementById('tables-section').style.display = 'none';
+        }
+
+        // Raw JSON view
+        document.getElementById('json-content').textContent =
+            JSON.stringify(extractionResult, null, 2);
+
+        // Toggle JSON view
+        document.getElementById('toggle-json').addEventListener('click', function() {
+            const rawJson = document.getElementById('raw-json');
+            const splitView = document.querySelector('.split-view');
+
+            if (rawJson.classList.contains('active')) {
+                rawJson.classList.remove('active');
+                splitView.classList.remove('hidden');
+                this.textContent = 'Show Raw JSON';
+            } else {
+                rawJson.classList.add('active');
+                splitView.classList.add('hidden');
+                this.textContent = 'Show Visual View';
+            }
+        });
+
+        // Download JSON
+        document.getElementById('download-json').addEventListener('click', function() {
+            const dataStr = "data:text/json;charset=utf-8," +
+                encodeURIComponent(JSON.stringify(extractionResult, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `${extractionResult.file_name}_extraction.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        });
+
+        // Collapsible sections
+        function toggleCollapse(element) {
+            element.classList.toggle('collapsed');
+            const content = element.nextElementSibling;
+            content.classList.toggle('hidden');
+        }
+    </script>
+</body>
+</html>
