@@ -13,7 +13,7 @@ python-docx==1.1.2
 mammoth==1.8.0
 
 # LlamaParse (Primary Extraction)
-llama-cloud-services==0.1.4
+llama-cloud-services==0.6.94
 
 # Google Gemini (Secondary pass — diagram description + OCR verification)
 google-genai==0.3.0
