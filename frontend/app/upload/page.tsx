@@ -36,9 +36,17 @@ function UploadPageContent() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  console.log('[AUTH][UPLOAD] Render — _hasHydrated:', _hasHydrated);
+
   useEffect(() => {
-    if (_hasHydrated && !isAuthenticated()) {
-      router.push('/login');
+    console.log('[AUTH][UPLOAD] useEffect — _hasHydrated:', _hasHydrated);
+    if (_hasHydrated) {
+      const authed = isAuthenticated();
+      console.log('[AUTH][UPLOAD] Hydrated, isAuthenticated:', authed);
+      if (!authed) {
+        console.log('[AUTH][UPLOAD] NOT authenticated — redirecting to /login');
+        router.push('/login');
+      }
     }
   }, [_hasHydrated, isAuthenticated, router]);
 
@@ -147,8 +155,10 @@ function UploadPageContent() {
   };
 
   if (!_hasHydrated || !isAuthenticated()) {
+    console.log('[AUTH][UPLOAD] Guard — not ready, returning null. _hasHydrated:', _hasHydrated);
     return null;
   }
+  console.log('[AUTH][UPLOAD] Rendering upload page');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">

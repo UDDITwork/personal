@@ -22,28 +22,48 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       _hasHydrated: false,
       setAuth: (token, expiresAt, user) => {
+        console.log('[AUTH] setAuth called', { tokenLength: token?.length, expiresAt, userEmail: user?.email });
         set({ token, expiresAt, user });
+        console.log('[AUTH] setAuth complete — store updated');
       },
       clearAuth: () => {
+        console.log('[AUTH] clearAuth called — clearing token, user, expiresAt');
         set({ token: null, expiresAt: null, user: null });
       },
       isAuthenticated: () => {
         const state = get();
-        return !!state.token && !state.isTokenExpired();
+        const hasToken = !!state.token;
+        const expired = state.isTokenExpired();
+        const result = hasToken && !expired;
+        console.log('[AUTH] isAuthenticated()', { hasToken, expired, result });
+        return result;
       },
       isTokenExpired: () => {
         const expiresAt = get().expiresAt;
         if (!expiresAt) return true;
-        return new Date(expiresAt) < new Date();
+        const expired = new Date(expiresAt) < new Date();
+        console.log('[AUTH] isTokenExpired()', { expiresAt, now: new Date().toISOString(), expired });
+        return expired;
       },
       setHasHydrated: (state) => {
+        console.log('[AUTH] setHasHydrated:', state);
         set({ _hasHydrated: state });
       },
     }),
     {
       name: 'auth-storage',
       onRehydrateStorage: () => {
-        return (state) => {
+        console.log('[AUTH] Zustand rehydration STARTING from localStorage...');
+        return (state, error) => {
+          if (error) {
+            console.error('[AUTH] Zustand rehydration FAILED:', error);
+          } else {
+            console.log('[AUTH] Zustand rehydration COMPLETE', {
+              hasToken: !!state?.token,
+              hasUser: !!state?.user,
+              expiresAt: state?.expiresAt,
+            });
+          }
           state?.setHasHydrated(true);
         };
       },

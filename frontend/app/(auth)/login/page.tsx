@@ -37,21 +37,26 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    console.log('[AUTH][LOGIN] Submit clicked, calling API...');
     setIsLoading(true);
     try {
-      // Connect to backend /api/v1/auth/login
       const response = await api.post<LoginResponse>('/auth/login', data);
+      console.log('[AUTH][LOGIN] API response received:', {
+        status: response.status,
+        hasToken: !!response.data.access_token,
+        expiresAt: response.data.expires_at,
+        userEmail: response.data.user?.email,
+      });
       const { access_token, expires_at, user } = response.data;
 
-      // Store auth data with expiration
       setAuth(access_token, expires_at, user as any);
+      console.log('[AUTH][LOGIN] setAuth done, pushing to /dashboard...');
 
       toast.success('Login successful!');
-
-      // Redirect to dashboard
       router.push('/dashboard');
+      console.log('[AUTH][LOGIN] router.push(/dashboard) called');
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('[AUTH][LOGIN] Login FAILED:', error.response?.status, error.response?.data || error.message);
       toast.error(error.response?.data?.detail || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
