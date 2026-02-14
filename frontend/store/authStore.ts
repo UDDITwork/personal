@@ -39,7 +39,8 @@ export const useAuthStore = create<AuthState>()(
       isTokenExpired: () => {
         const expiresAt = get().expiresAt;
         if (!expiresAt) return true;
-        return new Date(expiresAt) <= new Date();
+        // FIXED: Token is valid until expiration time (< not <=)
+        return new Date(expiresAt) < new Date();
       },
     }),
     {

@@ -15,8 +15,9 @@ api.interceptors.request.use((config) => {
     const token = localStorage.getItem('authToken');
     const expiresAt = localStorage.getItem('tokenExpiresAt');
 
-    // Check if token is expired
-    if (expiresAt && new Date(expiresAt) <= new Date()) {
+    // FIXED: Check if token is expired (< not <=)
+    // Token is valid AT the expiration time, not before it
+    if (expiresAt && new Date(expiresAt) < new Date()) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('tokenExpiresAt');
       window.location.href = '/login';

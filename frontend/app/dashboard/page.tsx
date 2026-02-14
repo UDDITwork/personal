@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,22 +10,34 @@ import { FileText, FileCheck, File, Upload, ArrowRight } from 'lucide-react';
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isAuthenticated, clearAuth } = useAuthStore();
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // FIXED: Wait for Zustand persist hydration before checking auth
+  useEffect(() => {
+    // Mark as hydrated after mount
+    // Zustand persist middleware hydrates synchronously on mount
+    setIsHydrated(true);
+  }, []);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    // Only check auth after hydration completes
+    if (isHydrated && !isAuthenticated()) {
       router.push('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [isHydrated, isAuthenticated, router]);
 
   const handleLogout = () => {
     clearAuth();
     router.push('/login');
   };
 
-  if (!isAuthenticated()) {
+  // FIXED: Show loading state during hydration
+  if (!isHydrated || !isAuthenticated()) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-slate-600">Redirecting to login...</p>
+        <p className="text-slate-600">
+          {!isHydrated ? 'Loading...' : 'Redirecting to login...'}
+        </p>
       </div>
     );
   }
