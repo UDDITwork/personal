@@ -9,35 +9,37 @@ import { FileText, FileCheck, File, Upload, ArrowRight } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, isAuthenticated, clearAuth } = useAuthStore();
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  // FIXED: Wait for Zustand persist hydration before checking auth
-  useEffect(() => {
-    // Mark as hydrated after mount
-    // Zustand persist middleware hydrates synchronously on mount
-    setIsHydrated(true);
-  }, []);
+  const { user, clearAuth } = useAuthStore();
+  const [ready, setReady] = useState(false);
+  const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
-    // Only check auth after hydration completes
-    if (isHydrated && !isAuthenticated()) {
+    // Check localStorage directly - this is synchronous and reliable
+    const token = localStorage.getItem('authToken');
+    const expiresAt = localStorage.getItem('tokenExpiresAt');
+
+    if (token && expiresAt && new Date(expiresAt) > new Date()) {
+      setHasToken(true);
+    } else {
+      // No valid token - redirect to login
       router.push('/login');
+      return;
     }
-  }, [isHydrated, isAuthenticated, router]);
+
+    // Give Zustand time to hydrate from localStorage
+    const timer = setTimeout(() => setReady(true), 100);
+    return () => clearTimeout(timer);
+  }, [router]);
 
   const handleLogout = () => {
     clearAuth();
     router.push('/login');
   };
 
-  // FIXED: Show loading state during hydration
-  if (!isHydrated || !isAuthenticated()) {
+  if (!ready || !hasToken) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-slate-600">
-          {!isHydrated ? 'Loading...' : 'Redirecting to login...'}
-        </p>
+        <p className="text-slate-600">Loading...</p>
       </div>
     );
   }
