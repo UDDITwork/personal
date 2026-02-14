@@ -14,7 +14,7 @@ mammoth==1.8.0
 
 # LlamaParse (Dual-layer extraction)
 llama-cloud-services==0.6.94  # Old API (Layer 1)
-llama-cloud==0.1.6  # New API (Layer 2)
+llama-cloud==0.1.46  # New API (Layer 2) - Required by llama-cloud-services
 
 # Google Gemini (Secondary pass — diagram description + OCR verification)
 google-genai==0.3.0
@@ -35,3 +35,11 @@ loguru==0.7.3
 python-dotenv==1.0.1
 beautifulsoup4==4.12.3
 lxml==5.3.0
+
+# Database & Authentication (Turso Cloud SQLite ONLY)
+sqlalchemy==2.0.25
+alembic==1.13.1
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt<5.0.0  # Pin to 4.x for passlib compatibility
+libsql-client==0.3.1  # Turso cloud database connector (pure Python, no Rust needed)

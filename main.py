@@ -35,6 +35,8 @@ logger.add(
 
 from config import settings, validate_api_keys
 from pipeline.router import router as extraction_router
+from routers import auth, projects, documents
+from database.connection import init_database, check_database_connection
 
 
 @asynccontextmanager
@@ -46,6 +48,21 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 80)
     logger.info("PATMASTER Document Extraction Pipeline Starting...")
     logger.info("=" * 80)
+
+    # Initialize database
+    try:
+        logger.info("Initializing database...")
+        init_database()
+        logger.success("✓ Database initialized")
+
+        # Test database connection
+        if check_database_connection():
+            logger.success("✓ Database connection verified")
+        else:
+            logger.warning("✗ Database connection test failed")
+    except Exception as e:
+        logger.error(f"✗ Database initialization failed: {e}")
+        logger.warning("Application will start but database features will be unavailable")
 
     # Validate API keys
     try:
@@ -117,7 +134,10 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
 
 # Include routers
-app.include_router(extraction_router)
+app.include_router(auth.router)  # Authentication endpoints
+app.include_router(projects.router)  # Project management endpoints
+app.include_router(documents.router)  # Document upload endpoints
+app.include_router(extraction_router)  # Legacy extraction endpoints
 
 
 @app.get("/")
@@ -125,24 +145,48 @@ async def root():
     """Root endpoint with API information"""
     return {
         "service": "PATMASTER Document Extraction API",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "status": "operational",
         "endpoints": {
-            "upload_pdf": "POST /api/v1/{user_id}/{session_id}/upload_idf_pdf",
-            "upload_docx": "POST /api/v1/{user_id}/{session_id}/upload_idf_transcription",
-            "get_result": "GET /api/v1/{user_id}/{session_id}/extraction_result",
-            "view_result": "GET /api/v1/{user_id}/{session_id}/view",
-            "status": "GET /api/v1/{user_id}/{session_id}/status",
-            "health": "GET /health",
-            "docs": "GET /docs"
+            "authentication": {
+                "register": "POST /api/v1/auth/register",
+                "login": "POST /api/v1/auth/login",
+                "logout": "POST /api/v1/auth/logout",
+                "me": "GET /api/v1/auth/me"
+            },
+            "projects": {
+                "create": "POST /api/v1/projects",
+                "list": "GET /api/v1/projects",
+                "get": "GET /api/v1/projects/{project_id}",
+                "update": "PUT /api/v1/projects/{project_id}",
+                "delete": "DELETE /api/v1/projects/{project_id}"
+            },
+            "documents": {
+                "upload_idf": "POST /api/v1/projects/{project_id}/upload/idf",
+                "upload_transcription": "POST /api/v1/projects/{project_id}/upload/transcription",
+                "upload_claims": "POST /api/v1/projects/{project_id}/upload/claims",
+                "get": "GET /api/v1/projects/{project_id}/documents/{document_id}",
+                "delete": "DELETE /api/v1/projects/{project_id}/documents/{document_id}"
+            },
+            "legacy": {
+                "upload_pdf": "POST /api/v1/{user_id}/{session_id}/upload_idf_pdf",
+                "upload_docx": "POST /api/v1/{user_id}/{session_id}/upload_idf_transcription",
+                "get_result": "GET /api/v1/{user_id}/{session_id}/extraction_result"
+            },
+            "system": {
+                "health": "GET /health",
+                "docs": "GET /docs",
+                "redoc": "GET /redoc"
+            }
         },
         "features": [
-            "LlamaParse agentic extraction with Gemini 2.5 Flash",
-            "PyMuPDF parallel image extraction",
+            "Multi-tenant authentication with JWT",
+            "Project-based document management",
+            "Three document types: IDF (PDF), Transcription (DOCX), Claims (DOCX)",
+            "Hybrid triple-layer extraction (LlamaParse V1 + LlamaCloud V2 + PyMuPDF)",
             "Gemini Vision diagram description",
-            "Supports PDF and DOCX files",
-            "Structured JSON output",
-            "Visual HTML viewer",
+            "Row-level security for multi-tenant isolation",
+            "Structured JSON output with database persistence",
             "Async processing with Celery (optional)",
             "Scalable to 10,000+ concurrent users"
         ]
@@ -192,6 +236,17 @@ async def health_check():
             health_status["status"] = "degraded"
     except Exception as e:
         health_status["checks"]["output_directory"] = f"error: {str(e)}"
+        health_status["status"] = "degraded"
+
+    # Check database connection
+    try:
+        if check_database_connection():
+            health_status["checks"]["database"] = "ok"
+        else:
+            health_status["checks"]["database"] = "connection_failed"
+            health_status["status"] = "degraded"
+    except Exception as e:
+        health_status["checks"]["database"] = f"error: {str(e)}"
         health_status["status"] = "degraded"
 
     status_code = 200 if health_status["status"] == "healthy" else 503

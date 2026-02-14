@@ -15,6 +15,15 @@ class Settings(BaseSettings):
     llama_cloud_api_key: str
     gemini_api_key: str
 
+    # Database Configuration (Turso SQLite)
+    turso_database_url: str = "https://monitoring-of-ibm-uddit.aws-ap-south-1.turso.io"
+    turso_auth_token: str = ""
+
+    # JWT Authentication
+    jwt_secret_key: str = "your_super_secret_key_here_change_in_production_min_32_characters_long"
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 30
+
     # Redis Configuration
     redis_url: str = "redis://localhost:6379/0"
 

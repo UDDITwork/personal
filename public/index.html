@@ -22,6 +22,7 @@
             --surface: #f5f5f7;
             --border: #d2d2d7;
             --success: #34c759;
+            --error: #ff3b30;
             --radius: 12px;
             --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -41,10 +42,43 @@
             padding: 60px 20px;
         }
 
-        /* Header */
+        /* Header with Logout */
         header {
             text-align: center;
             margin-bottom: 80px;
+            position: relative;
+        }
+
+        .user-menu {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: none;
+        }
+
+        .user-menu.active {
+            display: block;
+        }
+
+        .user-info {
+            font-size: 14px;
+            color: var(--secondary);
+            margin-bottom: 8px;
+        }
+
+        .logout-btn {
+            background: var(--surface);
+            color: var(--primary);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .logout-btn:hover {
+            background: var(--border);
         }
 
         h1 {
@@ -63,6 +97,102 @@
             margin: 0 auto;
         }
 
+        /* Auth Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--background);
+            border-radius: var(--radius);
+            padding: 40px;
+            max-width: 400px;
+            width: 90%;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+
+        input[type="email"],
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 15px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .error-message {
+            color: var(--error);
+            font-size: 13px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        .auth-switch {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: var(--secondary);
+        }
+
+        .auth-link {
+            color: var(--accent);
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .auth-link:hover {
+            text-decoration: underline;
+        }
+
         /* Upload Section */
         .upload-section {
             background: var(--surface);
@@ -70,6 +200,11 @@
             padding: 60px 40px;
             margin-bottom: 40px;
             transition: var(--transition);
+            display: none;
+        }
+
+        .upload-section.active {
+            display: block;
         }
 
         .upload-area {
@@ -289,46 +424,6 @@
             color: var(--primary);
         }
 
-        .images-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-        }
-
-        .image-card {
-            background: var(--background);
-            border-radius: var(--radius);
-            overflow: hidden;
-            border: 1px solid var(--border);
-            transition: var(--transition);
-        }
-
-        .image-card:hover {
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-            transform: translateY(-4px);
-        }
-
-        .image-card img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .image-info {
-            padding: 16px;
-        }
-
-        .image-label {
-            font-size: 13px;
-            color: var(--secondary);
-            margin-bottom: 8px;
-        }
-
-        .image-description {
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
         /* Action Buttons */
         .actions {
             display: flex;
@@ -344,25 +439,6 @@
 
         .btn-secondary:hover {
             background: var(--border);
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--secondary);
         }
 
         /* Responsive */
@@ -394,13 +470,51 @@
     </style>
 </head>
 <body>
+    <!-- Auth Modal -->
+    <div class="modal" id="authModal">
+        <div class="modal-content">
+            <div class="modal-header" id="authTitle">Login</div>
+
+            <form id="authForm">
+                <div class="form-group" id="nameGroup" style="display: none;">
+                    <label for="fullName">Full Name</label>
+                    <input type="text" id="fullName" placeholder="John Doe">
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="you@example.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+
+                <div class="error-message" id="authError"></div>
+
+                <button type="submit" class="btn" id="authSubmitBtn">Login</button>
+            </form>
+
+            <div class="auth-switch">
+                <span id="authSwitchText">Don't have an account?</span>
+                <a class="auth-link" id="authSwitchLink">Register</a>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <header>
+            <div class="user-menu" id="userMenu">
+                <div class="user-info" id="userEmail"></div>
+                <button class="logout-btn" id="logoutBtn">Logout</button>
+            </div>
+
             <h1>PATMASTER</h1>
             <p class="subtitle">Transform documents into structured intelligence</p>
         </header>
 
-        <div class="upload-section">
+        <div class="upload-section" id="uploadSection">
             <div class="upload-area" id="uploadArea">
                 <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -448,9 +562,8 @@
                     <div class="metric-value" id="metricImages">-</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-label">Accuracy</div>
-                    <div class="metric-value" id="metricAccuracy">-</div>
-                    <span class="metric-unit">%</span>
+                    <div class="metric-label">Status</div>
+                    <div class="metric-value" id="metricStatus">✓</div>
                 </div>
             </div>
 
@@ -459,13 +572,7 @@
                 <div class="text-preview" id="textPreview"></div>
             </div>
 
-            <div class="content-display" id="imagesSection" style="display: none;">
-                <div class="content-label">Extracted Images</div>
-                <div class="images-grid" id="imagesGrid"></div>
-            </div>
-
             <div class="actions">
-                <button class="btn btn-secondary" id="viewFullBtn">View Complete Analysis</button>
                 <button class="btn btn-secondary" id="downloadBtn">Download Data</button>
                 <button class="btn" id="newDocBtn">Process Another Document</button>
             </div>
@@ -473,13 +580,31 @@
     </div>
 
     <script>
-        const API_URL = 'https://patmaster-extraction-282996737766.europe-west1.run.app';
+        // API Configuration - Update this to your backend URL
+        const API_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:8000'
+            : 'https://your-backend-url.com'; // TODO: Update with your production backend URL
 
+        // Auth State
+        let authToken = localStorage.getItem('authToken');
+        let userEmail = localStorage.getItem('userEmail');
+        let currentProject = null;
         let selectedFile = null;
-        let currentUserId = 'user_' + Math.random().toString(36).substr(2, 9);
-        let currentSessionId = null;
-        let extractionResult = null;
+        let isLoginMode = true;
 
+        // DOM Elements
+        const authModal = document.getElementById('authModal');
+        const authForm = document.getElementById('authForm');
+        const authTitle = document.getElementById('authTitle');
+        const nameGroup = document.getElementById('nameGroup');
+        const authSubmitBtn = document.getElementById('authSubmitBtn');
+        const authSwitchText = document.getElementById('authSwitchText');
+        const authSwitchLink = document.getElementById('authSwitchLink');
+        const authError = document.getElementById('authError');
+        const userMenu = document.getElementById('userMenu');
+        const userEmailEl = document.getElementById('userEmail');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const uploadSection = document.getElementById('uploadSection');
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const fileInfo = document.getElementById('fileInfo');
@@ -491,6 +616,131 @@
         const progressText = document.getElementById('progressText');
         const results = document.getElementById('results');
 
+        // Initialize
+        if (authToken && userEmail) {
+            showApp();
+        } else {
+            showAuthModal();
+        }
+
+        // Auth Modal Toggle
+        authSwitchLink.addEventListener('click', () => {
+            isLoginMode = !isLoginMode;
+            if (isLoginMode) {
+                authTitle.textContent = 'Login';
+                nameGroup.style.display = 'none';
+                authSubmitBtn.textContent = 'Login';
+                authSwitchText.textContent = "Don't have an account?";
+                authSwitchLink.textContent = 'Register';
+            } else {
+                authTitle.textContent = 'Register';
+                nameGroup.style.display = 'block';
+                authSubmitBtn.textContent = 'Register';
+                authSwitchText.textContent = 'Already have an account?';
+                authSwitchLink.textContent = 'Login';
+            }
+            authError.classList.remove('active');
+        });
+
+        // Auth Form Submit
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            authError.classList.remove('active');
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const fullName = document.getElementById('fullName').value;
+
+            try {
+                const endpoint = isLoginMode ? '/api/v1/auth/login' : '/api/v1/auth/register';
+                const body = isLoginMode
+                    ? { email, password }
+                    : { email, password, full_name: fullName };
+
+                const response = await fetch(API_URL + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Authentication failed');
+                }
+
+                authToken = data.access_token;
+                userEmail = data.user.email;
+                localStorage.setItem('authToken', authToken);
+                localStorage.setItem('userEmail', userEmail);
+
+                showApp();
+
+            } catch (error) {
+                authError.textContent = error.message;
+                authError.classList.add('active');
+            }
+        });
+
+        // Logout
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await fetch(API_URL + '/api/v1/auth/logout', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+
+            authToken = null;
+            userEmail = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userEmail');
+            showAuthModal();
+        });
+
+        function showAuthModal() {
+            authModal.classList.add('active');
+            uploadSection.classList.remove('active');
+            userMenu.classList.remove('active');
+        }
+
+        async function showApp() {
+            authModal.classList.remove('active');
+            uploadSection.classList.add('active');
+            userMenu.classList.add('active');
+            userEmailEl.textContent = userEmail;
+
+            // Create a default project if needed
+            await createProject();
+        }
+
+        async function createProject() {
+            try {
+                const response = await fetch(API_URL + '/api/v1/projects', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: `Document Processing ${new Date().toLocaleDateString()}`,
+                        description: 'Auto-created project'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to create project');
+                }
+
+                currentProject = await response.json();
+            } catch (error) {
+                console.error('Project creation error:', error);
+            }
+        }
+
+        // File Upload Handlers
         uploadArea.addEventListener('click', () => fileInput.click());
 
         fileInput.addEventListener('change', (e) => {
@@ -531,10 +781,9 @@
             return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
         }
 
+        // Upload and Process
         uploadBtn.addEventListener('click', async () => {
-            if (!selectedFile) return;
-
-            currentSessionId = 'session_' + Date.now();
+            if (!selectedFile || !currentProject) return;
 
             progressSection.classList.add('active');
             results.classList.remove('active');
@@ -546,40 +795,63 @@
                 const formData = new FormData();
                 formData.append('file', selectedFile);
 
-                const endpoint = selectedFile.name.toLowerCase().endsWith('.pdf')
-                    ? 'upload_idf_pdf'
-                    : 'upload_idf_transcription';
+                const isPDF = selectedFile.name.toLowerCase().endsWith('.pdf');
+                const endpoint = isPDF ? 'idf' : 'transcription';
 
-                setProgress(30, 'Analyzing content...');
+                setProgress(30, 'Processing with AI...');
 
                 const uploadResponse = await fetch(
-                    `${API_URL}/api/v1/${currentUserId}/${currentSessionId}/${endpoint}`,
-                    { method: 'POST', body: formData }
+                    `${API_URL}/api/v1/projects/${currentProject.project_id}/upload/${endpoint}`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: formData
+                    }
                 );
 
                 if (!uploadResponse.ok) {
-                    throw new Error('Upload failed');
+                    const error = await uploadResponse.json();
+                    throw new Error(error.detail || 'Upload failed');
                 }
 
-                setProgress(60, 'Processing images...');
+                const uploadResult = await uploadResponse.json();
+                const documentId = uploadResult.document_id;
 
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                setProgress(60, 'Extracting content...');
 
-                const resultResponse = await fetch(
-                    `${API_URL}/api/v1/${currentUserId}/${currentSessionId}/extraction_result`
-                );
+                // Poll for results
+                let attempts = 0;
+                const maxAttempts = 30;
 
-                if (!resultResponse.ok) {
-                    throw new Error('Failed to retrieve results');
+                while (attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+
+                    const resultResponse = await fetch(
+                        `${API_URL}/api/v1/projects/${currentProject.project_id}/documents/${documentId}`,
+                        {
+                            headers: {
+                                'Authorization': `Bearer ${authToken}`
+                            }
+                        }
+                    );
+
+                    if (resultResponse.ok) {
+                        const data = await resultResponse.json();
+
+                        if (data.extraction && data.extraction.extracted_text_markdown) {
+                            setProgress(100, 'Complete');
+                            setTimeout(() => displayResults(data), 500);
+                            return;
+                        }
+                    }
+
+                    attempts++;
+                    setProgress(60 + (attempts * 1.3), 'Processing...');
                 }
 
-                extractionResult = await resultResponse.json();
-
-                setProgress(100, 'Complete');
-
-                setTimeout(() => {
-                    displayResults(extractionResult);
-                }, 500);
+                throw new Error('Processing timeout');
 
             } catch (error) {
                 console.error('Error:', error);
@@ -597,69 +869,25 @@
             progressSection.classList.remove('active');
             results.classList.add('active');
 
-            document.getElementById('resultFileName').textContent = data.file_name;
+            const extraction = data.extraction || {};
+
+            document.getElementById('resultFileName').textContent = data.file_name || 'Unknown';
             document.getElementById('metricTime').textContent =
-                (data.metadata?.processing_time_seconds || 0).toFixed(1);
-            document.getElementById('metricPages').textContent = data.total_pages || 0;
-            document.getElementById('metricImages').textContent = data.extracted_images?.length || 0;
-            document.getElementById('metricAccuracy').textContent =
-                data.confidence_score ? (data.confidence_score * 100).toFixed(0) : '-';
+                (extraction.total_time ? (extraction.total_time / 1000).toFixed(1) : '-');
+            document.getElementById('metricPages').textContent = extraction.total_pages || '-';
+            document.getElementById('metricImages').textContent =
+                (extraction.images ? extraction.images.length : 0);
+            document.getElementById('metricStatus').textContent =
+                data.processing_status === 'completed' ? '✓' : '...';
 
             const textPreview = document.getElementById('textPreview');
-            const text = data.extracted_text_plain || data.extracted_text_markdown || '';
+            const text = extraction.extracted_text_plain || extraction.extracted_text_markdown || '';
             textPreview.textContent = text.substring(0, 2000) + (text.length > 2000 ? '...' : '');
-
-            if (data.extracted_images && data.extracted_images.length > 0) {
-                document.getElementById('imagesSection').style.display = 'block';
-                const imagesGrid = document.getElementById('imagesGrid');
-                imagesGrid.innerHTML = '';
-
-                data.extracted_images.forEach(img => {
-                    const card = document.createElement('div');
-                    card.className = 'image-card';
-
-                    const imgElement = document.createElement('img');
-                    imgElement.src = 'data:image/png;base64,' + img.image_base64;
-                    imgElement.alt = img.image_id;
-
-                    const info = document.createElement('div');
-                    info.className = 'image-info';
-
-                    const label = document.createElement('div');
-                    label.className = 'image-label';
-                    label.textContent = `Page ${img.page_number}`;
-
-                    info.appendChild(label);
-
-                    if (img.diagram_description) {
-                        const desc = document.createElement('div');
-                        desc.className = 'image-description';
-                        desc.textContent = img.diagram_description.substring(0, 100) + '...';
-                        info.appendChild(desc);
-                    }
-
-                    card.appendChild(imgElement);
-                    card.appendChild(info);
-                    imagesGrid.appendChild(card);
-                });
-            }
         }
 
-        document.getElementById('viewFullBtn').addEventListener('click', () => {
-            const url = `${API_URL}/api/v1/${currentUserId}/${currentSessionId}/view`;
-            window.open(url, '_blank');
-        });
-
         document.getElementById('downloadBtn').addEventListener('click', () => {
-            if (!extractionResult) return;
-            const dataStr = "data:text/json;charset=utf-8," +
-                encodeURIComponent(JSON.stringify(extractionResult, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `${extractionResult.file_name}_extraction.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
+            if (!currentProject) return;
+            alert('Download functionality - export extraction results as JSON/PDF');
         });
 
         document.getElementById('newDocBtn').addEventListener('click', () => {
@@ -669,6 +897,7 @@
             results.classList.remove('active');
             progressSection.classList.remove('active');
             fileInput.value = '';
+            createProject(); // Create new project for next document
         });
     </script>
 </body>

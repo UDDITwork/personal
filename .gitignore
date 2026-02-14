@@ -45,3 +45,15 @@ celerybeat.pid
 
 # Redis
 dump.rdb
+
+# Database files (using Turso cloud only)
+*.db
+*.sqlite
+*.sqlite3
+
+# Test files
+test_*.py
+test-*.txt
+
+# Deployment scripts
+*.bat
