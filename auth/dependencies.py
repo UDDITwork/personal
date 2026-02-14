@@ -76,12 +76,16 @@ def create_access_token(user_id: str, email: str) -> Tuple[str, datetime]:
         minutes=settings.jwt_access_token_expire_minutes
     )
 
+    # Convert to Unix timestamp (seconds since epoch) for JWT exp claim
+    # RFC 7519: exp must be a NumericDate (Unix timestamp)
+    exp_timestamp = int(expire.timestamp())
+
     # Create JWT payload
     payload = {
         "sub": user_id,  # Subject (user ID)
         "email": email,
         "type": "access",
-        "exp": expire  # Expiration time
+        "exp": exp_timestamp  # FIXED: Unix timestamp instead of datetime object
     }
 
     # Encode JWT token
