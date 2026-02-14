@@ -125,7 +125,7 @@ app = FastAPI(
 # Use environment-based CORS origins for better security
 cors_origins = ["*"] if settings.environment == "development" else [
     "http://localhost:3000",  # Next.js dev server
-    "https://personalpe.vercel.app"  # Production domain
+    "https://personal-u9yu.vercel.app"  # Production domain (Vercel)
 ]
 
 app.add_middleware(

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { FileText, FileCheck, File, Upload, ArrowRight } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -45,75 +46,66 @@ export default function DashboardPage() {
           </Button>
         </div>
 
-        {/* Welcome Card */}
+        {/* Upload Document Types */}
         <Card>
           <CardHeader>
-            <CardTitle>PATMASTER Document Extraction</CardTitle>
+            <CardTitle>Upload Documents</CardTitle>
             <CardDescription>
-              Your document extraction platform is ready to use
+              Select a document type to start extraction
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <h3 className="font-semibold text-blue-900">Projects</h3>
-                  <p className="text-2xl font-bold text-blue-700 mt-2">0</p>
-                  <p className="text-sm text-blue-600 mt-1">Total projects</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* IDF Card */}
+              <button
+                onClick={() => router.push('/upload?type=idf')}
+                className="group p-6 rounded-lg border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 transition-all text-left"
+              >
+                <FileText className="w-12 h-12 text-blue-600 mb-4" />
+                <h3 className="text-xl font-bold text-blue-900 mb-2">IDF Document</h3>
+                <p className="text-sm text-blue-700 mb-4">
+                  Upload Information Disclosure Form (PDF)
+                </p>
+                <div className="flex items-center text-blue-600 font-medium group-hover:translate-x-1 transition-transform">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload PDF
+                  <ArrowRight className="w-4 h-4 ml-auto" />
                 </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <h3 className="font-semibold text-green-900">Documents</h3>
-                  <p className="text-2xl font-bold text-green-700 mt-2">0</p>
-                  <p className="text-sm text-green-600 mt-1">Processed documents</p>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <h3 className="font-semibold text-purple-900">Extractions</h3>
-                  <p className="text-2xl font-bold text-purple-700 mt-2">0</p>
-                  <p className="text-sm text-purple-600 mt-1">Completed extractions</p>
-                </div>
-              </div>
+              </button>
 
-              <div className="pt-4 border-t">
-                <h3 className="font-semibold text-slate-900 mb-3">Coming Soon</h3>
-                <ul className="space-y-2 text-sm text-slate-600">
-                  <li>✅ Authentication & User Management</li>
-                  <li>🔄 Project Creation & Management (In Progress)</li>
-                  <li>⏳ Document Upload Interface</li>
-                  <li>⏳ Extraction Results Viewer</li>
-                  <li>⏳ Real-time Processing Status</li>
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              {/* Transcription Card */}
+              <button
+                onClick={() => router.push('/upload?type=transcription')}
+                className="group p-6 rounded-lg border-2 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-400 transition-all text-left"
+              >
+                <FileCheck className="w-12 h-12 text-green-600 mb-4" />
+                <h3 className="text-xl font-bold text-green-900 mb-2">Transcription</h3>
+                <p className="text-sm text-green-700 mb-4">
+                  Upload Interview Transcription (DOCX)
+                </p>
+                <div className="flex items-center text-green-600 font-medium group-hover:translate-x-1 transition-transform">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload DOCX
+                  <ArrowRight className="w-4 h-4 ml-auto" />
+                </div>
+              </button>
 
-        {/* User Info Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-600">Email:</span>
-                <span className="font-medium">{user?.email}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Full Name:</span>
-                <span className="font-medium">{user?.full_name || 'Not set'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Account Status:</span>
-                <span className="font-medium text-green-600">
-                  {user?.is_active ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Member Since:</span>
-                <span className="font-medium">
-                  {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
-                </span>
-              </div>
+              {/* Claims Card */}
+              <button
+                onClick={() => router.push('/upload?type=claims')}
+                className="group p-6 rounded-lg border-2 border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-400 transition-all text-left"
+              >
+                <File className="w-12 h-12 text-purple-600 mb-4" />
+                <h3 className="text-xl font-bold text-purple-900 mb-2">Claims</h3>
+                <p className="text-sm text-purple-700 mb-4">
+                  Upload Patent Claims Document (DOCX)
+                </p>
+                <div className="flex items-center text-purple-600 font-medium group-hover:translate-x-1 transition-transform">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload DOCX
+                  <ArrowRight className="w-4 h-4 ml-auto" />
+                </div>
+              </button>
             </div>
           </CardContent>
         </Card>

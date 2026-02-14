@@ -32,6 +32,7 @@ cloudinary==1.41.0  # Cloud file storage for documents and images (NO local disk
 # Utilities
 pydantic==2.10.5
 pydantic-settings==2.7.1
+email-validator==2.2.0  # Required by Pydantic for EmailStr validation
 loguru==0.7.3
 python-dotenv==1.0.1
 beautifulsoup4==4.12.3
@@ -42,5 +43,5 @@ sqlalchemy==2.0.25
 alembic==1.13.1
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-bcrypt<5.0.0  # Pin to 4.x for passlib compatibility
+bcrypt==3.2.0  # Specific version for passlib compatibility
 libsql-client==0.3.1  # Turso cloud database connector (pure Python, no Rust needed)
