@@ -11,18 +11,11 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, clearAuth, isAuthenticated, _hasHydrated } = useAuthStore();
 
-  console.log('[DASHBOARD] Render — hydrated:', _hasHydrated, 'authenticated:', _hasHydrated ? isAuthenticated() : 'waiting', 'user:', user?.email);
-
   useEffect(() => {
-    if (_hasHydrated) {
-      const authed = isAuthenticated();
-      console.log('[DASHBOARD] Auth check — authenticated:', authed, 'user:', user?.email);
-      if (!authed) {
-        console.log('[DASHBOARD] Not authenticated — redirecting to /login');
-        router.push('/login');
-      }
+    if (_hasHydrated && !isAuthenticated()) {
+      router.push('/login');
     }
-  }, [_hasHydrated, isAuthenticated, router, user]);
+  }, [_hasHydrated, isAuthenticated, router]);
 
   const handleLogout = () => {
     clearAuth();
