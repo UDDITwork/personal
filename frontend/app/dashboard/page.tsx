@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,34 +9,20 @@ import { FileText, FileCheck, File, Upload, ArrowRight } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, clearAuth } = useAuthStore();
-  const [ready, setReady] = useState(false);
-  const [hasToken, setHasToken] = useState(false);
+  const { user, clearAuth, isAuthenticated, _hasHydrated } = useAuthStore();
 
   useEffect(() => {
-    // Check localStorage directly - this is synchronous and reliable
-    const token = localStorage.getItem('authToken');
-    const expiresAt = localStorage.getItem('tokenExpiresAt');
-
-    if (token && expiresAt && new Date(expiresAt) > new Date()) {
-      setHasToken(true);
-    } else {
-      // No valid token - redirect to login
+    if (_hasHydrated && !isAuthenticated()) {
       router.push('/login');
-      return;
     }
-
-    // Give Zustand time to hydrate from localStorage
-    const timer = setTimeout(() => setReady(true), 100);
-    return () => clearTimeout(timer);
-  }, [router]);
+  }, [_hasHydrated, isAuthenticated, router]);
 
   const handleLogout = () => {
     clearAuth();
     router.push('/login');
   };
 
-  if (!ready || !hasToken) {
+  if (!_hasHydrated || !isAuthenticated()) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-slate-600">Loading...</p>

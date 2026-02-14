@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuthStore } from '@/store/authStore';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://patmaster-extraction-282996737766.europe-west1.run.app';
 
@@ -12,14 +13,10 @@ export const api = axios.create({
 // Request interceptor to add auth token and check expiration
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('authToken');
-    const expiresAt = localStorage.getItem('tokenExpiresAt');
+    const { token, isTokenExpired } = useAuthStore.getState();
 
-    // FIXED: Check if token is expired (< not <=)
-    // Token is valid AT the expiration time, not before it
-    if (expiresAt && new Date(expiresAt) < new Date()) {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('tokenExpiresAt');
+    if (token && isTokenExpired()) {
+      useAuthStore.getState().clearAuth();
       window.location.href = '/login';
       return Promise.reject(new Error('Token expired'));
     }
@@ -37,11 +34,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        // Clear all auth data
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('tokenExpiresAt');
-        // Clear Zustand persist storage
-        localStorage.removeItem('auth-storage');
+        useAuthStore.getState().clearAuth();
         window.location.href = '/login';
       }
     }

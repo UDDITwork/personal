@@ -6,10 +6,12 @@ interface AuthState {
   token: string | null;
   expiresAt: string | null;
   user: User | null;
+  _hasHydrated: boolean;
   setAuth: (token: string, expiresAt: string, user: User) => void;
   clearAuth: () => void;
   isAuthenticated: () => boolean;
   isTokenExpired: () => boolean;
+  setHasHydrated: (state: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -18,18 +20,11 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       expiresAt: null,
       user: null,
+      _hasHydrated: false,
       setAuth: (token, expiresAt, user) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('authToken', token);
-          localStorage.setItem('tokenExpiresAt', expiresAt);
-        }
         set({ token, expiresAt, user });
       },
       clearAuth: () => {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('tokenExpiresAt');
-        }
         set({ token: null, expiresAt: null, user: null });
       },
       isAuthenticated: () => {
@@ -39,12 +34,19 @@ export const useAuthStore = create<AuthState>()(
       isTokenExpired: () => {
         const expiresAt = get().expiresAt;
         if (!expiresAt) return true;
-        // FIXED: Token is valid until expiration time (< not <=)
         return new Date(expiresAt) < new Date();
+      },
+      setHasHydrated: (state) => {
+        set({ _hasHydrated: state });
       },
     }),
     {
       name: 'auth-storage',
+      onRehydrateStorage: () => {
+        return (state) => {
+          state?.setHasHydrated(true);
+        };
+      },
     }
   )
 );

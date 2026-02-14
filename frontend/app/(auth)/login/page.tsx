@@ -48,10 +48,8 @@ export default function LoginPage() {
 
       toast.success('Login successful!');
 
-      // Force hard redirect to dashboard
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 500);
+      // Redirect to dashboard
+      router.push('/dashboard');
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.response?.data?.detail || 'Login failed. Please check your credentials.');
