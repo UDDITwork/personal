@@ -51,7 +51,7 @@ export default function ResultsPage({ params }: { params: Promise<{ documentId: 
   const documentId = resolvedParams.documentId;
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, _hasHydrated } = useAuthStore();
 
   const projectId = searchParams.get('project');
   const [document, setDocument] = useState<Document | null>(null);
@@ -59,6 +59,8 @@ export default function ResultsPage({ params }: { params: Promise<{ documentId: 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!_hasHydrated) return;
+
     if (!isAuthenticated()) {
       router.push('/login');
       return;
@@ -78,7 +80,7 @@ export default function ResultsPage({ params }: { params: Promise<{ documentId: 
     }, 2000); // Poll every 2 seconds
 
     return () => clearInterval(interval);
-  }, [documentId, projectId, isAuthenticated, document?.processing_status]);
+  }, [_hasHydrated, documentId, projectId, isAuthenticated, document?.processing_status]);
 
   const fetchDocument = async () => {
     if (!projectId) return;

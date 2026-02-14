@@ -27,7 +27,7 @@ interface UploadResponse {
 function UploadPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, _hasHydrated } = useAuthStore();
 
   const typeParam = searchParams.get('type') as DocumentType | null;
   const [selectedType, setSelectedType] = useState<DocumentType | null>(typeParam);
@@ -37,10 +37,10 @@ function UploadPageContent() {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (_hasHydrated && !isAuthenticated()) {
       router.push('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [_hasHydrated, isAuthenticated, router]);
 
   const documentTypes = {
     idf: {
@@ -146,7 +146,7 @@ function UploadPageContent() {
     }
   };
 
-  if (!isAuthenticated()) {
+  if (!_hasHydrated || !isAuthenticated()) {
     return null;
   }
 
