@@ -14,6 +14,14 @@ class FileType(str, Enum):
     DOCX = "docx"
 
 
+class BoundingBox(BaseModel):
+    """Bounding box coordinates for positioned content"""
+    x: float = Field(..., description="X coordinate (left)")
+    y: float = Field(..., description="Y coordinate (top)")
+    width: float = Field(..., description="Width of bounding box")
+    height: float = Field(..., description="Height of bounding box")
+
+
 class ExtractedImage(BaseModel):
     """Represents an image extracted from a document"""
     image_id: str = Field(..., description="Unique identifier like 'page3_img1'")
@@ -23,6 +31,9 @@ class ExtractedImage(BaseModel):
     diagram_description: Optional[str] = Field(None, description="Structured description from Gemini")
     width: Optional[int] = Field(None, description="Image width in pixels")
     height: Optional[int] = Field(None, description="Image height in pixels")
+    presigned_url: Optional[str] = Field(None, description="Cloud URL from LlamaCloud API")
+    image_type: Optional[str] = Field(None, description="Type: embedded, screenshot, layout")
+    b_box: Optional[BoundingBox] = Field(None, description="Bounding box on page")
 
 
 class DiagramDescription(BaseModel):
@@ -48,6 +59,8 @@ class ExtractedTable(BaseModel):
     rows: List[List[str]] = Field(default_factory=list, description="Table data rows")
     num_rows: int = Field(0, description="Number of rows in table")
     num_cols: int = Field(0, description="Number of columns in table")
+    b_box: Optional[BoundingBox] = Field(None, description="Bounding box on page")
+    extraction_source: Optional[str] = Field(None, description="Source: llamaparse_v1, llamacloud_v2, or merged")
 
 
 class ExtractionMetadata(BaseModel):
