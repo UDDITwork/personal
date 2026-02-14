@@ -2,7 +2,7 @@
 Database connection configuration for Turso SQLite
 Uses libsql-client with custom SQLAlchemy pool for Turso cloud database
 """
-from sqlalchemy import create_engine, event, pool
+from sqlalchemy import create_engine, event, pool, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from typing import Generator
@@ -232,7 +232,7 @@ def check_database_connection() -> bool:
     """
     try:
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         logger.success("Database connection test passed")
         return True

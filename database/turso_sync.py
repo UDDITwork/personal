@@ -3,7 +3,7 @@ Turso Cloud Sync Layer
 Synchronizes SQLAlchemy operations to Turso cloud database via libsql-client
 NO local SQLite files - pure cloud persistence
 """
-from sqlalchemy import event, inspect
+from sqlalchemy import event, inspect, text
 from sqlalchemy.orm import Session
 from loguru import logger
 from typing import Any, Dict, List
@@ -164,7 +164,7 @@ def load_data_from_turso(engine, turso_client):
                             placeholders = ", ".join([f":{col}" for col in columns])
                             cols = ", ".join(columns)
 
-                            insert_sql = f"INSERT INTO {table_name} ({cols}) VALUES ({placeholders})"
+                            insert_sql = text(f"INSERT INTO {table_name} ({cols}) VALUES ({placeholders})")
                             conn.execute(insert_sql, values)
                             total_rows += 1
 

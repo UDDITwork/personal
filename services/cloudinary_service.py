@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Dict, Optional
 import requests
 from io import BytesIO
+import asyncio
+from functools import partial
 
 
 # Configure Cloudinary on module import
@@ -57,9 +59,10 @@ async def upload_document(
         # Cloudinary folder structure: patmaster/{user_id}/{session_id}/
         folder = f"patmaster/{user_id}/{session_id}"
 
-        # Upload to Cloudinary
+        # Upload to Cloudinary (run in thread to avoid blocking async event loop)
         # resource_type="auto" detects: image (PNG/JPG) vs raw (PDF/DOCX)
-        result = cloudinary.uploader.upload(
+        result = await asyncio.to_thread(
+            cloudinary.uploader.upload,
             file_bytes,
             folder=folder,
             public_id=document_type,
@@ -109,7 +112,8 @@ async def upload_extracted_image(
     try:
         folder = f"patmaster/{user_id}/{session_id}/images"
 
-        result = cloudinary.uploader.upload(
+        result = await asyncio.to_thread(
+            cloudinary.uploader.upload,
             image_bytes,
             folder=folder,
             public_id=image_id,
@@ -149,16 +153,18 @@ async def upload_image_from_path(
     try:
         folder = f"patmaster/{user_id}/{session_id}/images"
 
-        # Upload from file path
+        # Upload from file path (run in thread to avoid blocking async event loop)
         with open(image_path, "rb") as f:
-            result = cloudinary.uploader.upload(
-                f,
-                folder=folder,
-                public_id=image_id,
-                resource_type="image",
-                overwrite=True,
-                invalidate=True
-            )
+            file_data = f.read()
+        result = await asyncio.to_thread(
+            cloudinary.uploader.upload,
+            file_data,
+            folder=folder,
+            public_id=image_id,
+            resource_type="image",
+            overwrite=True,
+            invalidate=True
+        )
 
         # Delete local file after successful upload
         try:
@@ -187,7 +193,9 @@ async def download_file(cloudinary_url: str) -> bytes:
         File content as bytes
     """
     try:
-        response = requests.get(cloudinary_url, timeout=30)
+        response = await asyncio.to_thread(
+            partial(requests.get, cloudinary_url, timeout=30)
+        )
         response.raise_for_status()
 
         logger.debug(f"📥 Downloaded file from Cloudinary ({len(response.content) / 1024:.2f} KB)")
@@ -210,12 +218,12 @@ async def delete_project_files(user_id: str, session_id: str):
     try:
         folder = f"patmaster/{user_id}/{session_id}"
 
-        # Delete all resources in folder
-        cloudinary.api.delete_resources_by_prefix(folder)
+        # Delete all resources in folder (run in thread)
+        await asyncio.to_thread(cloudinary.api.delete_resources_by_prefix, folder)
 
         # Delete the folder itself
         try:
-            cloudinary.api.delete_folder(folder)
+            await asyncio.to_thread(cloudinary.api.delete_folder, folder)
         except Exception as e:
             logger.debug(f"Folder deletion warning: {e}")
 
