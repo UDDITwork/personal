@@ -1,0 +1,18 @@
+{
+  "name": "patmaster-frontend",
+  "version": "1.0.0",
+  "description": "PATMASTER Document Intelligence - Professional Frontend",
+  "main": "index.html",
+  "scripts": {
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "document-extraction",
+    "ai",
+    "patmaster",
+    "ocr",
+    "diagram-analysis"
+  ],
+  "author": "PATMASTER",
+  "license": "MIT"
+}
