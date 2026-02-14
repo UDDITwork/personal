@@ -166,73 +166,73 @@ function UploadPageContent() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Upload Document</h1>
           <p className="text-slate-600 mt-1">
-            Select document type and upload your file for extraction
+            Name your project, select document type, and upload your file for extraction
           </p>
         </div>
 
-        {/* Step 1: Select Document Type */}
+        {/* Step 1: Project Name */}
         <Card>
           <CardHeader>
-            <CardTitle>1. Select Document Type</CardTitle>
-            <CardDescription>Choose the type of document you want to upload</CardDescription>
+            <CardTitle>1. Project Name</CardTitle>
+            <CardDescription>Give your project a name for easy identification</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {(Object.keys(documentTypes) as DocumentType[]).map((type) => {
-                const docType = documentTypes[type];
-                const Icon = docType.icon;
-                const isSelected = selectedType === type;
-
-                return (
-                  <button
-                    key={type}
-                    onClick={() => setSelectedType(type)}
-                    disabled={uploading}
-                    className={`
-                      p-6 rounded-lg border-2 transition-all text-left
-                      ${isSelected
-                        ? `border-${docType.color}-500 bg-${docType.color}-50`
-                        : 'border-slate-200 hover:border-slate-300'
-                      }
-                      ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                  >
-                    <Icon className={`w-8 h-8 mb-3 ${isSelected ? `text-${docType.color}-600` : 'text-slate-400'}`} />
-                    <h3 className="font-semibold text-slate-900">{docType.title}</h3>
-                    <p className="text-sm text-slate-600 mt-1">{docType.description}</p>
-                    <p className="text-xs text-slate-500 mt-2">({docType.fileType} only)</p>
-                  </button>
-                );
-              })}
+            <div className="space-y-2">
+              <Label htmlFor="projectName">Project Name</Label>
+              <Input
+                id="projectName"
+                type="text"
+                placeholder="e.g., Patent Application Q1 2024"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                disabled={uploading}
+              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Step 2: Project Name */}
-        {selectedType && (
+        {/* Step 2: Select Document Type */}
+        {projectName && (
           <Card>
             <CardHeader>
-              <CardTitle>2. Project Name</CardTitle>
-              <CardDescription>Give your project a name for easy identification</CardDescription>
+              <CardTitle>2. Select Document Type</CardTitle>
+              <CardDescription>Choose the type of document you want to upload</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <Label htmlFor="projectName">Project Name</Label>
-                <Input
-                  id="projectName"
-                  type="text"
-                  placeholder="e.g., Patent Application Q1 2024"
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  disabled={uploading}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(Object.keys(documentTypes) as DocumentType[]).map((type) => {
+                  const docType = documentTypes[type];
+                  const Icon = docType.icon;
+                  const isSelected = selectedType === type;
+
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setSelectedType(type)}
+                      disabled={uploading}
+                      className={`
+                        p-6 rounded-lg border-2 transition-all text-left
+                        ${isSelected
+                          ? `border-${docType.color}-500 bg-${docType.color}-50`
+                          : 'border-slate-200 hover:border-slate-300'
+                        }
+                        ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
+                      `}
+                    >
+                      <Icon className={`w-8 h-8 mb-3 ${isSelected ? `text-${docType.color}-600` : 'text-slate-400'}`} />
+                      <h3 className="font-semibold text-slate-900">{docType.title}</h3>
+                      <p className="text-sm text-slate-600 mt-1">{docType.description}</p>
+                      <p className="text-xs text-slate-500 mt-2">({docType.fileType} only)</p>
+                    </button>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
         )}
 
         {/* Step 3: Upload File */}
-        {selectedType && projectName && (
+        {projectName && selectedType && (
           <Card>
             <CardHeader>
               <CardTitle>3. Upload File</CardTitle>
