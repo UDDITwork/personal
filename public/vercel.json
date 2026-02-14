@@ -1,21 +1,10 @@
 {
-  "version": 2,
-  "name": "patmaster-document-intelligence",
-  "builds": [
+  "rewrites": [
     {
-      "src": "index.html",
-      "use": "@vercel/static"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
-  "env": {
-    "BACKEND_URL": "https://patmaster-extraction-282996737766.europe-west1.run.app"
-  },
   "headers": [
     {
       "source": "/(.*)",
