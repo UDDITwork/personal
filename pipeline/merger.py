@@ -55,6 +55,7 @@ class ExtractionMerger:
         text_plain = extraction_data.get("text_plain", "")
         images = extraction_data.get("images", [])
         tables = extraction_data.get("tables", [])
+        mermaid_diagrams = extraction_data.get("mermaid_diagrams", [])
         confidence_score = extraction_data.get("confidence_score")
 
         # Processing times
@@ -64,9 +65,12 @@ class ExtractionMerger:
         total_time = extraction_data.get("total_time", 0) + gemini_time
         extraction_method = extraction_data.get("extraction_method", "unknown")
 
+        # Combine Mermaid diagrams with Gemini vision diagrams
+        all_diagrams = mermaid_diagrams + diagram_descriptions
+
         # Merge diagram descriptions with images
         images_merged = ExtractionMerger._merge_diagram_descriptions(
-            images, diagram_descriptions
+            images, all_diagrams
         )
 
         # Create metadata
@@ -100,7 +104,7 @@ class ExtractionMerger:
             extracted_text_markdown=text_markdown,
             extracted_text_plain=text_plain,
             extracted_images=images_merged,
-            diagram_descriptions=diagram_descriptions,
+            diagram_descriptions=all_diagrams,
             extracted_tables=tables,
             confidence_score=confidence_score,
             metadata=metadata
@@ -109,7 +113,7 @@ class ExtractionMerger:
         logger.success(f"Extraction result merged successfully")
         logger.info(f"  - Text length: {len(text_plain)} chars")
         logger.info(f"  - Images: {len(images_merged)}")
-        logger.info(f"  - Diagrams described: {len(diagram_descriptions)}")
+        logger.info(f"  - Diagrams described: {len(all_diagrams)} ({len(mermaid_diagrams)} from Mermaid, {len(diagram_descriptions)} from Gemini)")
         logger.info(f"  - Tables: {len(tables)}")
         logger.info(f"  - Processing time: {total_time:.2f}s")
 

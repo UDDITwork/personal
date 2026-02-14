@@ -11,12 +11,21 @@ import fitz  # PyMuPDF
 from loguru import logger
 
 try:
+    from pdf2image import convert_from_path
+    PDF2IMAGE_AVAILABLE = True
+except ImportError:
+    logger.warning("pdf2image not available. Presentation-style PDF fallback disabled.")
+    PDF2IMAGE_AVAILABLE = False
+
+try:
     from llama_cloud_services import LlamaParse
 except ImportError:
     logger.error("llama-cloud-services not installed. Run: pip install llama-cloud-services")
     raise
 
-from .models import ExtractedImage, ExtractedTable
+from .models import ExtractedImage, ExtractedTable, DiagramDescription
+from .table_parser import TableParser
+from .mermaid_parser import MermaidParser
 from config import settings, get_session_output_dir
 
 
@@ -69,6 +78,7 @@ class PDFExtractor:
             text_plain = ""
             tables = []
             images = []
+            mermaid_diagrams = []
             confidence_score = None
 
             if isinstance(llamaparse_result, Exception):
@@ -78,6 +88,7 @@ class PDFExtractor:
                 text_markdown = llamaparse_result.get("text_markdown", "")
                 text_plain = llamaparse_result.get("text_plain", "")
                 tables = llamaparse_result.get("tables", [])
+                mermaid_diagrams = llamaparse_result.get("mermaid_diagrams", [])
                 confidence_score = llamaparse_result.get("confidence_score")
                 llamaparse_time = llamaparse_result.get("processing_time", 0)
                 logger.success(f"LlamaParse extraction completed in {llamaparse_time:.2f}s")
@@ -95,6 +106,12 @@ class PDFExtractor:
 
                 logger.success(f"PyMuPDF extraction completed in {pymupdf_time:.2f}s")
 
+            # Check if this is a presentation-style PDF and apply image fallback if needed
+            if self._is_presentation_style_pdf(pdf_path, len(images), len(mermaid_diagrams)):
+                logger.info("Detected presentation-style PDF - applying page image fallback")
+                page_images = self._extract_page_images_fallback(pdf_path)
+                images.extend(page_images)
+
             total_time = time.time() - start_time
 
             return {
@@ -102,6 +119,7 @@ class PDFExtractor:
                 "text_plain": text_plain,
                 "images": images,
                 "tables": tables,
+                "mermaid_diagrams": mermaid_diagrams,
                 "confidence_score": confidence_score,
                 "llamaparse_time": llamaparse_time,
                 "pymupdf_time": pymupdf_time,
@@ -135,6 +153,9 @@ class PDFExtractor:
             # Extract tables from markdown (LlamaParse includes tables in HTML format)
             tables = self._extract_tables_from_markdown(text_markdown)
 
+            # Extract Mermaid diagrams from markdown
+            mermaid_diagrams = self._extract_mermaid_diagrams(text_markdown)
+
             # Get confidence score if available from metadata
             confidence_score = None
             if documents and hasattr(documents[0], 'metadata'):
@@ -146,6 +167,7 @@ class PDFExtractor:
                 "text_markdown": text_markdown.strip(),
                 "text_plain": text_plain.strip(),
                 "tables": tables,
+                "mermaid_diagrams": mermaid_diagrams,
                 "confidence_score": confidence_score,
                 "processing_time": processing_time
             }
@@ -260,29 +282,152 @@ class PDFExtractor:
         html_pattern = r'<table.*?>(.*?)</table>'
         matches = re.findall(html_pattern, markdown, re.DOTALL | re.IGNORECASE)
 
+        table_parser = TableParser()
+
         for idx, table_html in enumerate(matches):
             try:
-                # Parse the HTML table to extract headers and rows
-                # For now, just store the raw HTML
-                # You can enhance this with BeautifulSoup if needed
+                # Reconstruct full HTML table
                 full_html = f"<table>{table_html}</table>"
+
+                # Parse HTML to extract structured data
+                headers, rows, num_rows, num_cols = table_parser.parse_html_table(full_html)
+
+                # Try to detect page number from context
+                page_number = table_parser.detect_table_page_from_context(full_html, markdown)
 
                 table = ExtractedTable(
                     table_id=f"table_{idx + 1}",
-                    page_number=0,  # Page number not easily determinable from markdown
+                    page_number=page_number,
                     html_content=full_html,
-                    headers=[],  # TODO: Parse HTML to extract headers
-                    rows=[],  # TODO: Parse HTML to extract rows
-                    num_rows=0,
-                    num_cols=0
+                    headers=headers,
+                    rows=rows,
+                    num_rows=num_rows,
+                    num_cols=num_cols
                 )
 
                 tables.append(table)
+                logger.debug(f"Parsed table {idx + 1}: {num_rows} rows x {num_cols} cols on page {page_number}")
 
             except Exception as e:
                 logger.warning(f"Failed to parse table {idx + 1}: {e}")
 
         return tables
+
+    def _extract_mermaid_diagrams(self, markdown: str) -> List[DiagramDescription]:
+        """Extract and parse Mermaid diagrams from markdown text"""
+        try:
+            mermaid_parser = MermaidParser()
+            diagrams = mermaid_parser.extract_mermaid_diagrams(markdown)
+            logger.info(f"Extracted {len(diagrams)} Mermaid diagrams from markdown")
+            return diagrams
+        except Exception as e:
+            logger.warning(f"Failed to extract Mermaid diagrams: {e}")
+            return []
+
+    def _is_presentation_style_pdf(self, pdf_path: str, images_found: int, mermaid_diagrams_found: int) -> bool:
+        """
+        Detect if PDF is presentation-style (PPTX converted) that may have rendered diagrams
+
+        Args:
+            pdf_path: Path to PDF
+            images_found: Number of embedded images found by PyMuPDF
+            mermaid_diagrams_found: Number of Mermaid diagrams found in text
+
+        Returns:
+            True if PDF appears to be presentation-style
+        """
+        # If we found Mermaid diagrams but no embedded images, likely a presentation
+        if mermaid_diagrams_found > 0 and images_found == 0:
+            return True
+
+        # Check page dimensions - presentations typically have landscape aspect ratio
+        try:
+            doc = fitz.open(pdf_path)
+            if len(doc) == 0:
+                return False
+
+            first_page = doc[0]
+            width = first_page.rect.width
+            height = first_page.rect.height
+            doc.close()
+
+            # Landscape orientation (width > height) is common for presentations
+            # Standard presentation: 10" x 7.5" = 1.33:1 ratio
+            aspect_ratio = width / height if height > 0 else 0
+
+            if aspect_ratio > 1.2:  # Landscape
+                return True
+
+        except Exception as e:
+            logger.debug(f"Error checking PDF dimensions: {e}")
+
+        return False
+
+    def _extract_page_images_fallback(self, pdf_path: str, max_pages: int = 10) -> List[ExtractedImage]:
+        """
+        Fallback method to extract page images for presentation-style PDFs
+
+        Args:
+            pdf_path: Path to PDF
+            max_pages: Maximum pages to convert (to avoid huge processing)
+
+        Returns:
+            List of ExtractedImage objects (one per page)
+        """
+        if not PDF2IMAGE_AVAILABLE:
+            logger.warning("pdf2image not available, skipping page image extraction")
+            return []
+
+        try:
+            logger.info(f"Converting PDF pages to images (presentation fallback)")
+
+            # Convert PDF pages to images (limit to first max_pages)
+            images = convert_from_path(
+                pdf_path,
+                dpi=150,  # Good balance of quality and file size
+                fmt='png',
+                first_page=1,
+                last_page=max_pages
+            )
+
+            extracted_images = []
+
+            for page_num, pil_image in enumerate(images, start=1):
+                try:
+                    # Save image to disk
+                    img_filename = f"page{page_num}_fullpage.png"
+                    img_path = self.output_dir / img_filename
+
+                    pil_image.save(img_path, 'PNG')
+
+                    # Convert to base64
+                    import io
+                    img_buffer = io.BytesIO()
+                    pil_image.save(img_buffer, format='PNG')
+                    image_base64 = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
+
+                    # Create ExtractedImage object
+                    extracted_image = ExtractedImage(
+                        image_id=f"page{page_num}_fullpage",
+                        page_number=page_num,
+                        image_path=str(img_path),
+                        image_base64=image_base64,
+                        width=pil_image.width,
+                        height=pil_image.height
+                    )
+
+                    extracted_images.append(extracted_image)
+                    logger.debug(f"Extracted full-page image for page {page_num}")
+
+                except Exception as e:
+                    logger.warning(f"Failed to extract page {page_num} as image: {e}")
+
+            logger.success(f"Extracted {len(extracted_images)} full-page images via fallback")
+            return extracted_images
+
+        except Exception as e:
+            logger.error(f"Page image fallback failed: {e}")
+            return []
 
 
 async def extract_pdf_complete(pdf_path: str, user_id: str, session_id: str) -> Dict[str, Any]:
