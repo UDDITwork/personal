@@ -33,8 +33,12 @@ logger.add(
     level="DEBUG"
 )
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 from config import settings, validate_api_keys
 from routers import auth, projects, documents
+from routers.auth import limiter
 from database.connection import init_database, check_database_connection
 
 
@@ -119,6 +123,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS middleware for cross-origin requests
 # Use environment-based CORS origins for better security
@@ -269,17 +277,30 @@ async def health_check():
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
+async def global_exception_handler(request: Request, exc):
     """
-    Global exception handler for unhandled errors
+    Global exception handler for unhandled errors.
+
+    Manually adds CORS headers to 500 responses so the browser can read
+    the error instead of showing an opaque CORS failure.
     """
     logger.error(f"Unhandled exception: {exc}")
     logger.exception(exc)
 
-    return JSONResponse(
+    response = JSONResponse(
         status_code=500,
         content={"error": "Internal server error"}
     )
+
+    # Manually inject CORS headers so the browser doesn't mask the real error
+    origin = request.headers.get("origin")
+    if origin:
+        # In development mode cors_origins is ["*"], allow every origin
+        if cors_origins == ["*"] or origin in cors_origins:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+
+    return response
 
 
 if __name__ == "__main__":

@@ -57,6 +57,7 @@ const documentTypes: Record<DocumentType, {
 };
 
 function UploadPageContent() {
+  console.log('%c[UPLOAD PAGE] Component rendered', 'color:#E91E63;font-weight:bold');
   const router = useRouter();
   const { isAuthenticated, _hasHydrated } = useAuthStore();
 
@@ -71,27 +72,55 @@ function UploadPageContent() {
   });
 
   useEffect(() => {
+    console.log('%c[UPLOAD PAGE] useEffect — auth guard', 'color:#9C27B0;font-weight:bold', {
+      _hasHydrated,
+      isAuth: _hasHydrated ? isAuthenticated() : 'waiting',
+    });
+
     if (_hasHydrated && !isAuthenticated()) {
+      console.log('%c[UPLOAD PAGE] ▶ NOT authenticated — redirecting to /login', 'color:#f44336;font-weight:bold');
       router.push('/login');
     }
   }, [_hasHydrated, isAuthenticated, router]);
 
   const handleCreateProject = async () => {
     if (!projectName.trim()) {
+      console.log('%c[UPLOAD PAGE] ✗ Project name empty — aborting', 'color:#FF9800');
       toast.error('Please enter a project name');
       return;
     }
 
+    console.log('%c[UPLOAD PAGE] ▶ "Create Project" clicked', 'color:#2196F3;font-weight:bold', {
+      projectName: projectName.trim(),
+    });
+
     setCreatingProject(true);
     try {
+      console.log('%c[UPLOAD PAGE] ▶ Calling POST /projects/', 'color:#2196F3;font-weight:bold', {
+        endpoint: '/projects/',
+        payload: { name: projectName, description: 'Patent extraction project' },
+      });
+
       const response = await api.post('/projects/', {
         name: projectName,
         description: 'Patent extraction project'
       });
+
+      console.log('%c[UPLOAD PAGE] ✓ Project created', 'color:#4CAF50;font-weight:bold', {
+        projectId: response.data.id,
+        projectName: response.data.name,
+        fullResponse: response.data,
+      });
+
       setProjectId(response.data.id);
       toast.success('Project created!');
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string } } };
+      const err = error as { response?: { data?: { detail?: string }; status?: number }; message?: string };
+      console.error('%c[UPLOAD PAGE] ✗ Project creation FAILED', 'color:#f44336;font-weight:bold', {
+        status: err.response?.status,
+        detail: err.response?.data?.detail,
+        message: err.message,
+      });
       toast.error(err.response?.data?.detail || 'Failed to create project');
     } finally {
       setCreatingProject(false);
@@ -104,7 +133,20 @@ function UploadPageContent() {
       const acceptedType = documentTypes[type].accept;
       const fileExt = '.' + selectedFile.name.split('.').pop();
 
+      console.log('%c[UPLOAD PAGE] ▶ File selected', 'color:#2196F3;font-weight:bold', {
+        type,
+        fileName: selectedFile.name,
+        fileSize: `${(selectedFile.size / 1024).toFixed(1)} KB`,
+        fileType: selectedFile.type,
+        extension: fileExt,
+        acceptedType,
+      });
+
       if (fileExt.toLowerCase() !== acceptedType.toLowerCase()) {
+        console.error('%c[UPLOAD PAGE] ✗ File type mismatch', 'color:#f44336;font-weight:bold', {
+          expected: acceptedType,
+          got: fileExt,
+        });
         toast.error(`Only ${documentTypes[type].fileType} files are allowed for ${type.toUpperCase()}`);
         return;
       }
@@ -113,12 +155,24 @@ function UploadPageContent() {
         ...prev,
         [type]: { ...prev[type], file: selectedFile, status: 'idle', error: null, documentId: null }
       }));
+      console.log('%c[UPLOAD PAGE] ✓ File set for upload slot', 'color:#4CAF50', { type, fileName: selectedFile.name });
     }
   };
 
   const handleUploadFile = async (type: DocumentType) => {
     const upload = uploads[type];
-    if (!upload.file || !projectId) return;
+    if (!upload.file || !projectId) {
+      console.log('%c[UPLOAD PAGE] ✗ Upload aborted — missing file or projectId', 'color:#FF9800', { hasFile: !!upload.file, projectId });
+      return;
+    }
+
+    console.log('%c[UPLOAD PAGE] ▶ Upload button clicked', 'color:#2196F3;font-weight:bold', {
+      type,
+      fileName: upload.file.name,
+      fileSize: `${(upload.file.size / 1024).toFixed(1)} KB`,
+      projectId,
+      endpoint: `/projects/${projectId}/upload/${type}`,
+    });
 
     setUploads(prev => ({
       ...prev,
@@ -129,14 +183,17 @@ function UploadPageContent() {
       const formData = new FormData();
       formData.append('file', upload.file);
 
+      console.log('%c[UPLOAD PAGE] ▶ Calling POST /projects/%s/upload/%s', 'color:#2196F3;font-weight:bold', projectId, type);
+
       const response = await api.post(
         `/projects/${projectId}/upload/${type}`,
         formData,
         {
-          headers: { 'Content-Type': 'multipart/form-data' },
+          headers: { 'Content-Type': undefined },  // Let browser set multipart boundary automatically
           onUploadProgress: (progressEvent) => {
             if (progressEvent.total) {
               const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              console.log('%c[UPLOAD PAGE] ⬆ Upload progress', 'color:#9E9E9E', { type, progress: `${progress}%`, loaded: progressEvent.loaded, total: progressEvent.total });
               setUploads(prev => ({
                 ...prev,
                 [type]: { ...prev[type], progress }
@@ -146,19 +203,52 @@ function UploadPageContent() {
         }
       );
 
+      console.log('%c[UPLOAD PAGE] ✓ Upload SUCCESS', 'color:#4CAF50;font-weight:bold', {
+        type,
+        documentId: response.data.document_id,
+        status: response.status,
+        fullResponse: response.data,
+      });
+
       setUploads(prev => ({
         ...prev,
         [type]: { ...prev[type], uploading: false, progress: 100, status: 'done', documentId: response.data.document_id }
       }));
       toast.success(`${documentTypes[type].title} uploaded!`);
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string } } };
+      const err = error as { response?: { data?: { detail?: string }; status?: number }; message?: string };
+      console.error('%c[UPLOAD PAGE] ✗ Upload FAILED', 'color:#f44336;font-weight:bold', {
+        type,
+        status: err.response?.status,
+        detail: err.response?.data?.detail,
+        message: err.message,
+        fullError: err.response?.data,
+      });
       setUploads(prev => ({
         ...prev,
         [type]: { ...prev[type], uploading: false, progress: 0, status: 'error', error: err.response?.data?.detail || 'Upload failed' }
       }));
       toast.error(err.response?.data?.detail || `${documentTypes[type].title} upload failed`);
     }
+  };
+
+  const handleViewResults = () => {
+    const firstDone = Object.entries(uploads).find(([, u]) => u.status === 'done');
+    if (firstDone) {
+      console.log('%c[UPLOAD PAGE] ▶ "View Results" clicked — navigating', 'color:#2196F3;font-weight:bold', {
+        documentId: firstDone[1].documentId,
+        projectId,
+        allUploads: Object.fromEntries(
+          Object.entries(uploads).map(([k, v]) => [k, { status: v.status, documentId: v.documentId }])
+        ),
+      });
+      router.push(`/results/${firstDone[1].documentId}?project=${projectId}`);
+    }
+  };
+
+  const handleBackToDashboard = () => {
+    console.log('%c[UPLOAD PAGE] ▶ "Back to Dashboard" clicked', 'color:#2196F3;font-weight:bold');
+    router.push('/dashboard');
   };
 
   const completedCount = Object.values(uploads).filter(u => u.status === 'done').length;
@@ -310,19 +400,12 @@ function UploadPageContent() {
           <div className="flex gap-3">
             <Button
               variant="outline"
-              onClick={() => router.push('/dashboard')}
+              onClick={handleBackToDashboard}
             >
               Back to Dashboard
             </Button>
             {completedCount > 0 && (
-              <Button
-                onClick={() => {
-                  const firstDone = Object.entries(uploads).find(([, u]) => u.status === 'done');
-                  if (firstDone) {
-                    router.push(`/results/${firstDone[1].documentId}?project=${projectId}`);
-                  }
-                }}
-              >
+              <Button onClick={handleViewResults}>
                 View Results ({completedCount} document{completedCount > 1 ? 's' : ''})
               </Button>
             )}
