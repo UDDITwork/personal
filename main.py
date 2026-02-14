@@ -13,10 +13,10 @@ import sys
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from loguru import logger
 
 # Configure loguru
@@ -34,7 +34,6 @@ logger.add(
 )
 
 from config import settings, validate_api_keys
-from pipeline.router import router as extraction_router
 from routers import auth, projects, documents
 from database.connection import init_database, check_database_connection
 
@@ -136,6 +135,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Security headers middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response: Response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
 
@@ -143,7 +152,6 @@ app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="stat
 app.include_router(auth.router)  # Authentication endpoints
 app.include_router(projects.router)  # Project management endpoints
 app.include_router(documents.router)  # Document upload endpoints
-app.include_router(extraction_router)  # Legacy extraction endpoints
 
 
 @app.get("/")
@@ -270,11 +278,7 @@ async def global_exception_handler(request, exc):
 
     return JSONResponse(
         status_code=500,
-        content={
-            "error": "Internal server error",
-            "message": str(exc),
-            "type": type(exc).__name__
-        }
+        content={"error": "Internal server error"}
     )
 
 

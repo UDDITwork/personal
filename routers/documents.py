@@ -15,6 +15,11 @@ from auth.dependencies import get_current_user
 from config import get_session_output_dir
 from services.cloudinary_service import upload_document
 
+# Upload constraints
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+ALLOWED_PDF_TYPES = {"application/pdf"}
+ALLOWED_DOCX_TYPES = {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+
 router = APIRouter(
     prefix="/api/v1/projects",
     tags=["Documents"]
@@ -92,8 +97,13 @@ async def save_uploaded_file_cloudinary(
             ...
         }
     """
-    # Read file content
+    # Read file content and enforce size limit
     file_content = await file.read()
+    if len(file_content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB."
+        )
 
     # Upload to Cloudinary
     cloudinary_result = await upload_document(
@@ -136,11 +146,16 @@ async def upload_idf(
             detail="IDF document already uploaded for this project. Delete existing document first."
         )
 
-    # Validate file type
+    # Validate file type (extension + MIME)
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only PDF files are accepted for IDF documents"
+        )
+    if file.content_type and file.content_type not in ALLOWED_PDF_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file type. Only PDF files are accepted for IDF documents."
         )
 
     # Upload to Cloudinary (NO local disk storage)
@@ -209,11 +224,16 @@ async def upload_transcription(
             detail="Transcription document already uploaded for this project. Delete existing document first."
         )
 
-    # Validate file type
+    # Validate file type (extension + MIME)
     if not file.filename.lower().endswith('.docx'):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only DOCX files are accepted for Transcription documents"
+        )
+    if file.content_type and file.content_type not in ALLOWED_DOCX_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file type. Only DOCX files are accepted for Transcription documents."
         )
 
     # Upload to Cloudinary (NO local disk storage)
@@ -282,11 +302,16 @@ async def upload_claims(
             detail="Claims document already uploaded for this project. Delete existing document first."
         )
 
-    # Validate file type
+    # Validate file type (extension + MIME)
     if not file.filename.lower().endswith('.docx'):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only DOCX files are accepted for Claims documents"
+        )
+    if file.content_type and file.content_type not in ALLOWED_DOCX_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file type. Only DOCX files are accepted for Claims documents."
         )
 
     # Upload to Cloudinary (NO local disk storage)

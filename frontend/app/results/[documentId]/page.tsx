@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, FileText, Image as ImageIcon, Table as TableIcon, AlertCircle } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 
@@ -284,7 +285,7 @@ export default function ResultsPage({ params }: { params: Promise<{ documentId: 
                     <CardContent>
                       <div
                         className="overflow-x-auto"
-                        dangerouslySetInnerHTML={{ __html: table.html_content }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(table.html_content) }}
                       />
                     </CardContent>
                   </Card>

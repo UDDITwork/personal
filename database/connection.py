@@ -13,16 +13,9 @@ import libsql_client
 from config import settings
 
 
-# Turso database URL and token from environment
-TURSO_DATABASE_URL = os.getenv(
-    "TURSO_DATABASE_URL",
-    "https://monitoring-of-ibm-uddit.aws-ap-south-1.turso.io"
-)
-
-TURSO_AUTH_TOKEN = os.getenv(
-    "TURSO_AUTH_TOKEN",
-    "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzEwNDkxMzMsImlkIjoiODJmYzJlMDUtNzJjNC00NzM2LTkyYjEtNjE3NmE0YjRlYTBiIiwicmlkIjoiNmY3ODEyMGQtY2Q4NC00Yzc1LTgyMzUtMjRhOTE0YjdiZDUyIn0.Q_RafVKO8HAry1VEM6uRNgzyOFTUBl0HE1p72tSLhwbqfKGClslzqlmohS_vhNmsPIYa6jJoQRshJJ6lFbKxAg"
-)
+# Turso database URL and token from settings (loaded from .env / environment)
+TURSO_DATABASE_URL = settings.turso_database_url
+TURSO_AUTH_TOKEN = settings.turso_auth_token
 
 
 def get_turso_connection():

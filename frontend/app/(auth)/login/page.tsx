@@ -37,27 +37,27 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    console.log('[AUTH][LOGIN] Submit clicked, calling API...');
+    console.log('[LOGIN] Submitting login for:', data.email);
     setIsLoading(true);
     try {
       const response = await api.post<LoginResponse>('/auth/login', data);
-      console.log('[AUTH][LOGIN] API response received:', {
-        status: response.status,
-        hasToken: !!response.data.access_token,
-        expiresAt: response.data.expires_at,
-        userEmail: response.data.user?.email,
-      });
+      console.log('[LOGIN] Response received:', response.status, response.data?.message);
       const { access_token, expires_at, user } = response.data;
 
+      console.log('[LOGIN] Setting auth — token length:', access_token?.length, 'expires:', expires_at);
       setAuth(access_token, expires_at, user as any);
-      console.log('[AUTH][LOGIN] setAuth done, pushing to /dashboard...');
+
+      // Verify auth was stored correctly
+      const authState = useAuthStore.getState();
+      console.log('[LOGIN] Auth stored — hasToken:', !!authState.token, 'isAuthenticated:', authState.isAuthenticated());
 
       toast.success('Login successful!');
+      console.log('[LOGIN] Navigating to /dashboard...');
       router.push('/dashboard');
-      console.log('[AUTH][LOGIN] router.push(/dashboard) called');
-    } catch (error: any) {
-      console.error('[AUTH][LOGIN] Login FAILED:', error.response?.status, error.response?.data || error.message);
-      toast.error(error.response?.data?.detail || 'Login failed. Please check your credentials.');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string }; status?: number }; message?: string };
+      console.error('[LOGIN] ERROR:', err.response?.status, err.response?.data || err.message);
+      toast.error(err.response?.data?.detail || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }

@@ -84,18 +84,15 @@ function UploadPageContent() {
 
     setCreatingProject(true);
     try {
-      console.log('[UPLOAD] Creating project:', projectName);
       const response = await api.post('/projects/', {
         name: projectName,
         description: 'Patent extraction project'
       });
-      const id = response.data.id;
-      setProjectId(id);
-      console.log('[UPLOAD] Project created, ID:', id);
+      setProjectId(response.data.id);
       toast.success('Project created!');
-    } catch (error: any) {
-      console.error('[UPLOAD] Project creation failed:', error);
-      toast.error(error.response?.data?.detail || 'Failed to create project');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || 'Failed to create project');
     } finally {
       setCreatingProject(false);
     }
@@ -129,7 +126,6 @@ function UploadPageContent() {
     }));
 
     try {
-      console.log(`[UPLOAD] Uploading ${type} to project ${projectId}`);
       const formData = new FormData();
       formData.append('file', upload.file);
 
@@ -150,19 +146,18 @@ function UploadPageContent() {
         }
       );
 
-      console.log(`[UPLOAD] ${type} uploaded successfully:`, response.data.document_id);
       setUploads(prev => ({
         ...prev,
         [type]: { ...prev[type], uploading: false, progress: 100, status: 'done', documentId: response.data.document_id }
       }));
       toast.success(`${documentTypes[type].title} uploaded!`);
-    } catch (error: any) {
-      console.error(`[UPLOAD] ${type} upload failed:`, error);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
       setUploads(prev => ({
         ...prev,
-        [type]: { ...prev[type], uploading: false, progress: 0, status: 'error', error: error.response?.data?.detail || 'Upload failed' }
+        [type]: { ...prev[type], uploading: false, progress: 0, status: 'error', error: err.response?.data?.detail || 'Upload failed' }
       }));
-      toast.error(error.response?.data?.detail || `${documentTypes[type].title} upload failed`);
+      toast.error(err.response?.data?.detail || `${documentTypes[type].title} upload failed`);
     }
   };
 

@@ -22,12 +22,11 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       _hasHydrated: false,
       setAuth: (token, expiresAt, user) => {
-        console.log('[AUTH] setAuth called', { tokenLength: token?.length, expiresAt, userEmail: user?.email });
+        console.log('[AUTH] setAuth — token length:', token?.length, 'expires:', expiresAt, 'user:', user?.email);
         set({ token, expiresAt, user });
-        console.log('[AUTH] setAuth complete — store updated');
       },
       clearAuth: () => {
-        console.log('[AUTH] clearAuth called — clearing token, user, expiresAt');
+        console.log('[AUTH] clearAuth called');
         set({ token: null, expiresAt: null, user: null });
       },
       isAuthenticated: () => {
@@ -35,7 +34,9 @@ export const useAuthStore = create<AuthState>()(
         const hasToken = !!state.token;
         const expired = state.isTokenExpired();
         const result = hasToken && !expired;
-        console.log('[AUTH] isAuthenticated()', { hasToken, expired, result });
+        if (!result) {
+          console.log('[AUTH] isAuthenticated:', result, '— hasToken:', hasToken, 'expired:', expired);
+        }
         return result;
       },
       isTokenExpired: () => {
@@ -44,27 +45,24 @@ export const useAuthStore = create<AuthState>()(
         // Backend sends naive datetime (no timezone suffix) — treat as UTC
         const utcExpiresAt = expiresAt.endsWith('Z') || expiresAt.includes('+') ? expiresAt : expiresAt + 'Z';
         const expired = new Date(utcExpiresAt) < new Date();
-        console.log('[AUTH] isTokenExpired()', { expiresAt, utcExpiresAt, now: new Date().toISOString(), expired });
+        if (expired) {
+          console.log('[AUTH] Token expired — expiresAt:', utcExpiresAt, 'now:', new Date().toISOString());
+        }
         return expired;
       },
       setHasHydrated: (state) => {
-        console.log('[AUTH] setHasHydrated:', state);
         set({ _hasHydrated: state });
       },
     }),
     {
       name: 'auth-storage',
       onRehydrateStorage: () => {
-        console.log('[AUTH] Zustand rehydration STARTING from localStorage...');
+        console.log('[AUTH] Zustand rehydration starting...');
         return (state, error) => {
           if (error) {
             console.error('[AUTH] Zustand rehydration FAILED:', error);
           } else {
-            console.log('[AUTH] Zustand rehydration COMPLETE', {
-              hasToken: !!state?.token,
-              hasUser: !!state?.user,
-              expiresAt: state?.expiresAt,
-            });
+            console.log('[AUTH] Zustand rehydration complete — hasToken:', !!state?.token, 'user:', state?.user?.email);
           }
           state?.setHasHydrated(true);
         };

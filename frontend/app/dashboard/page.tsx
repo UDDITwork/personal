@@ -11,36 +11,31 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, clearAuth, isAuthenticated, _hasHydrated } = useAuthStore();
 
-  console.log('[AUTH][DASHBOARD] Render — _hasHydrated:', _hasHydrated, 'user:', user?.email);
+  console.log('[DASHBOARD] Render — hydrated:', _hasHydrated, 'authenticated:', _hasHydrated ? isAuthenticated() : 'waiting', 'user:', user?.email);
 
   useEffect(() => {
-    console.log('[AUTH][DASHBOARD] useEffect — _hasHydrated:', _hasHydrated);
     if (_hasHydrated) {
       const authed = isAuthenticated();
-      console.log('[AUTH][DASHBOARD] Hydrated, isAuthenticated:', authed);
+      console.log('[DASHBOARD] Auth check — authenticated:', authed, 'user:', user?.email);
       if (!authed) {
-        console.log('[AUTH][DASHBOARD] NOT authenticated — redirecting to /login');
+        console.log('[DASHBOARD] Not authenticated — redirecting to /login');
         router.push('/login');
       }
     }
-  }, [_hasHydrated, isAuthenticated, router]);
+  }, [_hasHydrated, isAuthenticated, router, user]);
 
   const handleLogout = () => {
-    console.log('[AUTH][DASHBOARD] Logout clicked');
     clearAuth();
     router.push('/login');
   };
 
   if (!_hasHydrated || !isAuthenticated()) {
-    console.log('[AUTH][DASHBOARD] Showing loading — _hasHydrated:', _hasHydrated);
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-slate-600">Loading...</p>
       </div>
     );
   }
-
-  console.log('[AUTH][DASHBOARD] Rendering full dashboard for:', user?.email);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
