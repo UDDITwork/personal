@@ -2,12 +2,14 @@
 Authentication Router
 Handles user registration, login, and logout
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 from loguru import logger
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from database import get_db, User, UserSession
 from auth.dependencies import (
@@ -16,6 +18,8 @@ from auth.dependencies import (
     create_access_token,
     get_current_user
 )
+
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(
     prefix="/api/v1/auth",
@@ -59,8 +63,10 @@ class UserResponse(BaseModel):
 # Endpoints
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")
 async def register(
-    request: RegisterRequest,
+    request: Request,
+    body: RegisterRequest,
     db: Session = Depends(get_db)
 ):
     """
@@ -69,27 +75,27 @@ async def register(
     Creates a new user with email/password authentication.
     Email must be unique.
     """
-    logger.info(f"Registration attempt for email: {request.email}")
+    logger.info(f"Registration attempt for email: {body.email}")
 
     # Check if user already exists
-    existing_user = db.query(User).filter(User.email == request.email).first()
+    existing_user = db.query(User).filter(User.email == body.email).first()
 
     if existing_user:
-        logger.warning(f"Registration failed: Email {request.email} already registered")
+        logger.warning(f"Registration failed: Email {body.email} already registered")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
 
     # Hash password
-    password_hash, password_salt = hash_password(request.password)
+    password_hash, password_salt = hash_password(body.password)
 
     # Create new user
     new_user = User(
-        email=request.email,
+        email=body.email,
         password_hash=password_hash,
         password_salt=password_salt,
-        full_name=request.full_name,
+        full_name=body.full_name,
         is_active=True
     )
 
@@ -111,8 +117,10 @@ async def register(
 
 
 @router.post("/login", response_model=AuthResponse)
+@limiter.limit("5/minute")
 async def login(
-    request: LoginRequest,
+    request: Request,
+    body: LoginRequest,
     db: Session = Depends(get_db)
 ):
     """
@@ -121,13 +129,13 @@ async def login(
     Returns a JWT access token that should be included in
     subsequent requests as: Authorization: Bearer <token>
     """
-    logger.info(f"Login attempt for email: {request.email}")
+    logger.info(f"Login attempt for email: {body.email}")
 
     # Find user by email
-    user = db.query(User).filter(User.email == request.email).first()
+    user = db.query(User).filter(User.email == body.email).first()
 
     if not user:
-        logger.warning(f"Login failed: User not found for email {request.email}")
+        logger.warning(f"Login failed: User not found for email {body.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -135,8 +143,8 @@ async def login(
         )
 
     # Verify password
-    if not verify_password(request.password, user.password_hash, user.password_salt):
-        logger.warning(f"Login failed: Incorrect password for email {request.email}")
+    if not verify_password(body.password, user.password_hash, user.password_salt):
+        logger.warning(f"Login failed: Incorrect password for email {body.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -145,7 +153,7 @@ async def login(
 
     # Check if user is active
     if not user.is_active:
-        logger.warning(f"Login failed: User account inactive for email {request.email}")
+        logger.warning(f"Login failed: User account inactive for email {body.email}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive"
