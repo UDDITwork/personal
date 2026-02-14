@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
 
+    # Cloudinary Cloud Storage (NO local disk storage)
+    # These will be loaded from environment variables in production
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
+
     # Redis Configuration
     redis_url: str = "redis://localhost:6379/0"
 

@@ -27,6 +27,7 @@ aiohttp==3.11.11
 
 # Storage
 google-cloud-storage==2.19.0
+cloudinary==1.41.0  # Cloud file storage for documents and images (NO local disk usage)
 
 # Utilities
 pydantic==2.10.5

@@ -13,6 +13,7 @@ from loguru import logger
 from database import get_db, User, Project, Document
 from auth.dependencies import get_current_user
 from config import get_session_output_dir
+from services.cloudinary_service import upload_document
 
 router = APIRouter(
     prefix="/api/v1/projects",
@@ -74,33 +75,38 @@ async def check_document_exists(
     return existing is not None
 
 
-async def save_uploaded_file(
+async def save_uploaded_file_cloudinary(
     file: UploadFile,
     user_id: str,
     session_id: str,
     document_type: str,
     file_extension: str
-) -> Path:
+) -> dict:
     """
-    Save uploaded file to disk
+    Upload file to Cloudinary cloud storage (NO LOCAL DISK)
 
-    File naming: {user_id}_{session_id}_{document_type}.{ext}
+    Returns:
+        {
+            "url": "https://res.cloudinary.com/...",
+            "bytes": 1234567,
+            ...
+        }
     """
-    output_dir = get_session_output_dir(user_id, session_id)
-
-    # Construct file path
-    file_name = f"{user_id}_{session_id}_{document_type}.{file_extension}"
-    file_path = output_dir / file_name
-
-    # Read and save file
+    # Read file content
     file_content = await file.read()
 
-    with open(file_path, "wb") as f:
-        f.write(file_content)
+    # Upload to Cloudinary
+    cloudinary_result = await upload_document(
+        file_bytes=file_content,
+        filename=file.filename,
+        user_id=user_id,
+        session_id=session_id,
+        document_type=document_type
+    )
 
-    logger.info(f"Saved file: {file_path} ({len(file_content)} bytes)")
+    logger.info(f"☁️  Uploaded to Cloudinary: {cloudinary_result['url']} ({len(file_content)} bytes)")
 
-    return file_path
+    return cloudinary_result
 
 
 # Upload Endpoints
@@ -137,8 +143,8 @@ async def upload_idf(
             detail="Only PDF files are accepted for IDF documents"
         )
 
-    # Save file
-    file_path = await save_uploaded_file(
+    # Upload to Cloudinary (NO local disk storage)
+    cloudinary_result = await save_uploaded_file_cloudinary(
         file,
         current_user.id,
         project.session_id,
@@ -146,14 +152,14 @@ async def upload_idf(
         "pdf"
     )
 
-    # Create document record
+    # Create document record with Cloudinary URL
     document = Document(
         project_id=project_id,
         document_type="idf",
         file_name=file.filename,
         file_type="pdf",
-        file_path=str(file_path),
-        file_size_bytes=file_path.stat().st_size,
+        file_path=cloudinary_result["url"],  # ☁️ Cloudinary URL (not local path)
+        file_size_bytes=cloudinary_result.get("bytes", 0),
         processing_status="pending"
     )
 
@@ -168,12 +174,12 @@ async def upload_idf(
 
     return DocumentUploadResponse(
         success=True,
-        message="IDF document uploaded successfully. Processing will begin shortly.",
+        message="IDF document uploaded successfully to Cloudinary. Processing will begin shortly.",
         document_id=document.id,
         project_id=project_id,
         document_type="idf",
         file_name=file.filename,
-        file_path=str(file_path),
+        file_path=cloudinary_result["url"],  # ☁️ Cloudinary URL
         processing_status="pending"
     )
 
@@ -210,8 +216,8 @@ async def upload_transcription(
             detail="Only DOCX files are accepted for Transcription documents"
         )
 
-    # Save file
-    file_path = await save_uploaded_file(
+    # Upload to Cloudinary (NO local disk storage)
+    cloudinary_result = await save_uploaded_file_cloudinary(
         file,
         current_user.id,
         project.session_id,
@@ -219,14 +225,14 @@ async def upload_transcription(
         "docx"
     )
 
-    # Create document record
+    # Create document record with Cloudinary URL
     document = Document(
         project_id=project_id,
         document_type="transcription",
         file_name=file.filename,
         file_type="docx",
-        file_path=str(file_path),
-        file_size_bytes=file_path.stat().st_size,
+        file_path=cloudinary_result["url"],  # ☁️ Cloudinary URL (not local path)
+        file_size_bytes=cloudinary_result.get("bytes", 0),
         processing_status="pending"
     )
 
@@ -241,12 +247,12 @@ async def upload_transcription(
 
     return DocumentUploadResponse(
         success=True,
-        message="Transcription document uploaded successfully. Processing will begin shortly.",
+        message="Transcription document uploaded successfully to Cloudinary. Processing will begin shortly.",
         document_id=document.id,
         project_id=project_id,
         document_type="transcription",
         file_name=file.filename,
-        file_path=str(file_path),
+        file_path=cloudinary_result["url"],  # ☁️ Cloudinary URL
         processing_status="pending"
     )
 
@@ -283,8 +289,8 @@ async def upload_claims(
             detail="Only DOCX files are accepted for Claims documents"
         )
 
-    # Save file
-    file_path = await save_uploaded_file(
+    # Upload to Cloudinary (NO local disk storage)
+    cloudinary_result = await save_uploaded_file_cloudinary(
         file,
         current_user.id,
         project.session_id,
@@ -292,14 +298,14 @@ async def upload_claims(
         "docx"
     )
 
-    # Create document record
+    # Create document record with Cloudinary URL
     document = Document(
         project_id=project_id,
         document_type="claims",
         file_name=file.filename,
         file_type="docx",
-        file_path=str(file_path),
-        file_size_bytes=file_path.stat().st_size,
+        file_path=cloudinary_result["url"],  # ☁️ Cloudinary URL (not local path)
+        file_size_bytes=cloudinary_result.get("bytes", 0),
         processing_status="pending"
     )
 
@@ -314,12 +320,12 @@ async def upload_claims(
 
     return DocumentUploadResponse(
         success=True,
-        message="Claims document uploaded successfully. Processing will begin shortly.",
+        message="Claims document uploaded successfully to Cloudinary. Processing will begin shortly.",
         document_id=document.id,
         project_id=project_id,
         document_type="claims",
         file_name=file.filename,
-        file_path=str(file_path),
+        file_path=cloudinary_result["url"],  # ☁️ Cloudinary URL
         processing_status="pending"
     )
 

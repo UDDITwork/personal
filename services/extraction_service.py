@@ -8,6 +8,7 @@ import json
 from sqlalchemy.orm import Session
 from loguru import logger
 from typing import List
+from pathlib import Path
 
 from database.models import (
     Document,
@@ -21,6 +22,13 @@ from database.models import (
 from pipeline.pdf_extractor_hybrid import extract_pdf_hybrid
 from pipeline.docx_extractor import extract_docx_complete
 from pipeline.diagram_describer import describe_diagrams_batch
+
+# Import Cloudinary helpers
+from pipeline.cloudinary_wrapper import (
+    download_from_cloudinary_to_temp,
+    upload_extracted_images_to_cloudinary,
+    cleanup_temp_file
+)
 
 
 async def process_extraction(document: Document, db: Session):
@@ -49,39 +57,75 @@ async def process_extraction(document: Document, db: Session):
         user_id = project.user.id
         session_id = project.session_id
 
-        # Extract based on file type
-        if document.file_type == "pdf":
-            logger.info(f"Running hybrid PDF extraction for {document.file_path}")
-            extraction_data = await extract_pdf_hybrid(
-                document.file_path,
-                user_id,
-                session_id
-            )
+        # Check if file_path is a Cloudinary URL
+        file_path = document.file_path
+        is_cloudinary = file_path.startswith("http")
+        temp_file_path = None
 
-        elif document.file_type == "docx":
-            logger.info(f"Running DOCX extraction for {document.file_path}")
-            extraction_data = await extract_docx_complete(
-                document.file_path,
-                user_id,
-                session_id
-            )
+        try:
+            # Download from Cloudinary if needed
+            if is_cloudinary:
+                logger.info(f"☁️  File stored in Cloudinary, downloading for processing...")
+                temp_file_path = await download_from_cloudinary_to_temp(
+                    file_path,
+                    document.file_name
+                )
+                processing_path = str(temp_file_path)
+            else:
+                # Legacy: local file path
+                processing_path = file_path
 
-        else:
-            raise ValueError(f"Unsupported file type: {document.file_type}")
+            # Extract based on file type (extraction logic UNCHANGED)
+            if document.file_type == "pdf":
+                logger.info(f"Running hybrid PDF extraction for {processing_path}")
+                extraction_data = await extract_pdf_hybrid(
+                    processing_path,
+                    user_id,
+                    session_id
+                )
+
+            elif document.file_type == "docx":
+                logger.info(f"Running DOCX extraction for {processing_path}")
+                extraction_data = await extract_docx_complete(
+                    processing_path,
+                    user_id,
+                    session_id
+                )
+
+            else:
+                raise ValueError(f"Unsupported file type: {document.file_type}")
+
+        finally:
+            # Cleanup temporary file if downloaded from Cloudinary
+            if temp_file_path:
+                cleanup_temp_file(temp_file_path)
+
+        # Upload extracted images to Cloudinary
+        images = extraction_data.get("images", [])
+        if images:
+            logger.info(f"☁️  Uploading {len(images)} extracted images to Cloudinary...")
+            try:
+                extraction_data["images"] = await upload_extracted_images_to_cloudinary(
+                    images,
+                    user_id,
+                    session_id
+                )
+                logger.success(f"✅ All extracted images uploaded to Cloudinary")
+            except Exception as e:
+                logger.warning(f"Image upload to Cloudinary failed: {e}")
+                # Continue with local paths
 
         # Describe diagrams using Gemini Vision
-        images = extraction_data.get("images", [])
         diagram_descriptions = []
-
         if images:
             logger.info(f"Describing {len(images)} diagrams with Gemini Vision")
             try:
-                diagram_descriptions = await describe_diagrams_batch(images)
+                diagram_descriptions = await describe_diagrams_batch(extraction_data["images"])
             except Exception as e:
                 logger.warning(f"Diagram description failed: {e}")
                 # Continue without diagram descriptions
 
-        # Save extraction results to database
+        # Save extraction results to Turso database
         await save_extraction_to_db(document, extraction_data, diagram_descriptions, db)
 
         # Update document status
