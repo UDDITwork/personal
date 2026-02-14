@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Upload, FileText, FileCheck, File } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Upload, FileText, FileCheck, File, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
@@ -14,216 +13,296 @@ import { useAuthStore } from '@/store/authStore';
 
 type DocumentType = 'idf' | 'transcription' | 'claims';
 
-interface UploadResponse {
-  success: boolean;
-  message: string;
-  document_id: string;
-  project_id: string;
-  document_type: string;
-  file_name: string;
-  processing_status: string;
+interface UploadStatus {
+  file: File | null;
+  uploading: boolean;
+  progress: number;
+  documentId: string | null;
+  status: 'idle' | 'uploading' | 'done' | 'error';
+  error: string | null;
 }
+
+const documentTypes: Record<DocumentType, {
+  title: string;
+  description: string;
+  icon: typeof FileText;
+  color: string;
+  accept: string;
+  fileType: string;
+}> = {
+  idf: {
+    title: 'IDF Document',
+    description: 'Information Disclosure Form',
+    icon: FileText,
+    color: 'blue',
+    accept: '.pdf',
+    fileType: 'PDF'
+  },
+  transcription: {
+    title: 'Transcription',
+    description: 'Interview Transcription',
+    icon: FileCheck,
+    color: 'green',
+    accept: '.docx',
+    fileType: 'DOCX'
+  },
+  claims: {
+    title: 'Claims',
+    description: 'Patent Claims',
+    icon: File,
+    color: 'purple',
+    accept: '.docx',
+    fileType: 'DOCX'
+  }
+};
 
 function UploadPageContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { isAuthenticated, _hasHydrated } = useAuthStore();
 
-  const typeParam = searchParams.get('type') as DocumentType | null;
-  const [selectedType, setSelectedType] = useState<DocumentType | null>(typeParam);
-  const [file, setFile] = useState<File | null>(null);
   const [projectName, setProjectName] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [creatingProject, setCreatingProject] = useState(false);
 
-  console.log('[AUTH][UPLOAD] Render — _hasHydrated:', _hasHydrated);
+  const [uploads, setUploads] = useState<Record<DocumentType, UploadStatus>>({
+    idf: { file: null, uploading: false, progress: 0, documentId: null, status: 'idle', error: null },
+    transcription: { file: null, uploading: false, progress: 0, documentId: null, status: 'idle', error: null },
+    claims: { file: null, uploading: false, progress: 0, documentId: null, status: 'idle', error: null },
+  });
 
   useEffect(() => {
-    console.log('[AUTH][UPLOAD] useEffect — _hasHydrated:', _hasHydrated);
-    if (_hasHydrated) {
-      const authed = isAuthenticated();
-      console.log('[AUTH][UPLOAD] Hydrated, isAuthenticated:', authed);
-      if (!authed) {
-        console.log('[AUTH][UPLOAD] NOT authenticated — redirecting to /login');
-        router.push('/login');
-      }
+    if (_hasHydrated && !isAuthenticated()) {
+      router.push('/login');
     }
   }, [_hasHydrated, isAuthenticated, router]);
 
-  const documentTypes = {
-    idf: {
-      title: 'IDF Document',
-      description: 'Information Disclosure Form',
-      icon: FileText,
-      color: 'blue',
-      accept: '.pdf',
-      fileType: 'PDF'
-    },
-    transcription: {
-      title: 'Transcription',
-      description: 'Interview Transcription',
-      icon: FileCheck,
-      color: 'green',
-      accept: '.docx',
-      fileType: 'DOCX'
-    },
-    claims: {
-      title: 'Claims',
-      description: 'Patent Claims',
-      icon: File,
-      color: 'purple',
-      accept: '.docx',
-      fileType: 'DOCX'
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-
-      if (!selectedType) {
-        toast.error('Please select a document type first');
-        return;
-      }
-
-      const acceptedType = documentTypes[selectedType].accept;
-      const fileExt = '.' + selectedFile.name.split('.').pop();
-
-      if (fileExt.toLowerCase() !== acceptedType.toLowerCase()) {
-        toast.error(`Only ${documentTypes[selectedType].fileType} files are allowed for ${selectedType.toUpperCase()}`);
-        return;
-      }
-
-      setFile(selectedFile);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file || !selectedType || !projectName.trim()) {
-      toast.error('Please fill all fields');
+  const handleCreateProject = async () => {
+    if (!projectName.trim()) {
+      toast.error('Please enter a project name');
       return;
     }
 
-    setUploading(true);
-    setUploadProgress(0);
+    setCreatingProject(true);
+    try {
+      console.log('[UPLOAD] Creating project:', projectName);
+      const response = await api.post('/projects/', {
+        name: projectName,
+        description: 'Patent extraction project'
+      });
+      const id = response.data.id;
+      setProjectId(id);
+      console.log('[UPLOAD] Project created, ID:', id);
+      toast.success('Project created!');
+    } catch (error: any) {
+      console.error('[UPLOAD] Project creation failed:', error);
+      toast.error(error.response?.data?.detail || 'Failed to create project');
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
+  const handleFileSelect = (type: DocumentType, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      const acceptedType = documentTypes[type].accept;
+      const fileExt = '.' + selectedFile.name.split('.').pop();
+
+      if (fileExt.toLowerCase() !== acceptedType.toLowerCase()) {
+        toast.error(`Only ${documentTypes[type].fileType} files are allowed for ${type.toUpperCase()}`);
+        return;
+      }
+
+      setUploads(prev => ({
+        ...prev,
+        [type]: { ...prev[type], file: selectedFile, status: 'idle', error: null, documentId: null }
+      }));
+    }
+  };
+
+  const handleUploadFile = async (type: DocumentType) => {
+    const upload = uploads[type];
+    if (!upload.file || !projectId) return;
+
+    setUploads(prev => ({
+      ...prev,
+      [type]: { ...prev[type], uploading: true, progress: 0, status: 'uploading', error: null }
+    }));
 
     try {
-      // Step 1: Create project
-      toast.info('Creating project...');
-      const projectResponse = await api.post('/projects/', {
-        name: projectName,
-        description: `${selectedType.toUpperCase()} document upload`
-      });
-
-      const projectId = projectResponse.data.id;
-      setUploadProgress(30);
-
-      // Step 2: Upload document
-      toast.info('Uploading document...');
+      console.log(`[UPLOAD] Uploading ${type} to project ${projectId}`);
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', upload.file);
 
-      const uploadResponse = await api.post<UploadResponse>(
-        `/projects/${projectId}/upload/${selectedType}`,
+      const response = await api.post(
+        `/projects/${projectId}/upload/${type}`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' },
           onUploadProgress: (progressEvent) => {
             if (progressEvent.total) {
-              const progress = 30 + Math.round((progressEvent.loaded * 70) / progressEvent.total);
-              setUploadProgress(progress);
+              const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              setUploads(prev => ({
+                ...prev,
+                [type]: { ...prev[type], progress }
+              }));
             }
           }
         }
       );
 
-      setUploadProgress(100);
-      toast.success('Document uploaded successfully! Starting extraction...');
-
-      // Redirect to results page
-      setTimeout(() => {
-        router.push(`/results/${uploadResponse.data.document_id}?project=${projectId}`);
-      }, 1000);
-
+      console.log(`[UPLOAD] ${type} uploaded successfully:`, response.data.document_id);
+      setUploads(prev => ({
+        ...prev,
+        [type]: { ...prev[type], uploading: false, progress: 100, status: 'done', documentId: response.data.document_id }
+      }));
+      toast.success(`${documentTypes[type].title} uploaded!`);
     } catch (error: any) {
-      console.error('Upload error:', error);
-      toast.error(error.response?.data?.detail || 'Upload failed');
-      setUploadProgress(0);
-    } finally {
-      setUploading(false);
+      console.error(`[UPLOAD] ${type} upload failed:`, error);
+      setUploads(prev => ({
+        ...prev,
+        [type]: { ...prev[type], uploading: false, progress: 0, status: 'error', error: error.response?.data?.detail || 'Upload failed' }
+      }));
+      toast.error(error.response?.data?.detail || `${documentTypes[type].title} upload failed`);
     }
   };
 
+  const completedCount = Object.values(uploads).filter(u => u.status === 'done').length;
+
   if (!_hasHydrated || !isAuthenticated()) {
-    console.log('[AUTH][UPLOAD] Guard — not ready, returning null. _hasHydrated:', _hasHydrated);
     return null;
   }
-  console.log('[AUTH][UPLOAD] Rendering upload page');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Upload Document</h1>
+          <h1 className="text-3xl font-bold text-slate-900">New Project</h1>
           <p className="text-slate-600 mt-1">
-            Name your project, select document type, and upload your file for extraction
+            Create a project and upload your documents for extraction
           </p>
         </div>
 
         {/* Step 1: Project Name */}
         <Card>
           <CardHeader>
-            <CardTitle>1. Project Name</CardTitle>
-            <CardDescription>Give your project a name for easy identification</CardDescription>
+            <CardTitle>1. Create Project</CardTitle>
+            <CardDescription>Give your project a name to get started</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="projectName">Project Name</Label>
+            <div className="flex gap-3">
               <Input
-                id="projectName"
                 type="text"
                 placeholder="e.g., Patent Application Q1 2024"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                disabled={uploading}
+                disabled={!!projectId || creatingProject}
+                className="flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !projectId) handleCreateProject();
+                }}
               />
+              {!projectId ? (
+                <Button onClick={handleCreateProject} disabled={!projectName.trim() || creatingProject}>
+                  {creatingProject ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create'
+                  )}
+                </Button>
+              ) : (
+                <div className="flex items-center text-green-600 px-3">
+                  <CheckCircle2 className="w-5 h-5 mr-2" />
+                  Created
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Step 2: Select Document Type */}
-        {projectName && (
+        {/* Step 2: Upload Documents */}
+        {projectId && (
           <Card>
             <CardHeader>
-              <CardTitle>2. Select Document Type</CardTitle>
-              <CardDescription>Choose the type of document you want to upload</CardDescription>
+              <CardTitle>2. Upload Documents</CardTitle>
+              <CardDescription>
+                Upload your documents into this project ({completedCount}/3 uploaded)
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-4">
                 {(Object.keys(documentTypes) as DocumentType[]).map((type) => {
                   const docType = documentTypes[type];
+                  const upload = uploads[type];
                   const Icon = docType.icon;
-                  const isSelected = selectedType === type;
 
                   return (
-                    <button
+                    <div
                       key={type}
-                      onClick={() => setSelectedType(type)}
-                      disabled={uploading}
-                      className={`
-                        p-6 rounded-lg border-2 transition-all text-left
-                        ${isSelected
-                          ? `border-${docType.color}-500 bg-${docType.color}-50`
-                          : 'border-slate-200 hover:border-slate-300'
-                        }
-                        ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
-                      `}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        upload.status === 'done'
+                          ? 'border-green-300 bg-green-50'
+                          : upload.status === 'error'
+                          ? 'border-red-300 bg-red-50'
+                          : 'border-slate-200 bg-white'
+                      }`}
                     >
-                      <Icon className={`w-8 h-8 mb-3 ${isSelected ? `text-${docType.color}-600` : 'text-slate-400'}`} />
-                      <h3 className="font-semibold text-slate-900">{docType.title}</h3>
-                      <p className="text-sm text-slate-600 mt-1">{docType.description}</p>
-                      <p className="text-xs text-slate-500 mt-2">({docType.fileType} only)</p>
-                    </button>
+                      <div className="flex items-center gap-4">
+                        <Icon className={`w-8 h-8 flex-shrink-0 ${
+                          upload.status === 'done' ? 'text-green-600' :
+                          upload.status === 'error' ? 'text-red-600' :
+                          `text-${docType.color}-600`
+                        }`} />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-slate-900">{docType.title}</h3>
+                          <p className="text-sm text-slate-500">{docType.description} ({docType.fileType} only)</p>
+
+                          {upload.status === 'done' && (
+                            <p className="text-sm text-green-600 mt-1 flex items-center">
+                              <CheckCircle2 className="w-4 h-4 mr-1" />
+                              Uploaded successfully
+                            </p>
+                          )}
+                          {upload.status === 'error' && (
+                            <p className="text-sm text-red-600 mt-1 flex items-center">
+                              <AlertCircle className="w-4 h-4 mr-1" />
+                              {upload.error}
+                            </p>
+                          )}
+                          {upload.uploading && (
+                            <Progress value={upload.progress} className="mt-2 h-2" />
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {upload.status !== 'done' && (
+                            <>
+                              <Input
+                                type="file"
+                                accept={docType.accept}
+                                onChange={(e) => handleFileSelect(type, e)}
+                                disabled={upload.uploading}
+                                className="w-48"
+                              />
+                              {upload.file && !upload.uploading && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleUploadFile(type)}
+                                >
+                                  <Upload className="w-4 h-4 mr-1" />
+                                  Upload
+                                </Button>
+                              )}
+                              {upload.uploading && (
+                                <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -231,55 +310,28 @@ function UploadPageContent() {
           </Card>
         )}
 
-        {/* Step 3: Upload File */}
-        {projectName && selectedType && (
-          <Card>
-            <CardHeader>
-              <CardTitle>3. Upload File</CardTitle>
-              <CardDescription>
-                Select a {documentTypes[selectedType].fileType} file to upload
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="file">
-                  File ({documentTypes[selectedType].fileType} only)
-                </Label>
-                <Input
-                  id="file"
-                  type="file"
-                  accept={documentTypes[selectedType].accept}
-                  onChange={handleFileChange}
-                  disabled={uploading}
-                />
-                {file && (
-                  <p className="text-sm text-slate-600">
-                    Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                  </p>
-                )}
-              </div>
-
-              {uploading && (
-                <div className="space-y-2">
-                  <Progress value={uploadProgress} />
-                  <p className="text-sm text-slate-600 text-center">
-                    {uploadProgress < 30 ? 'Creating project...' :
-                     uploadProgress < 100 ? 'Uploading document...' : 'Processing...'}
-                  </p>
-                </div>
-              )}
-
+        {/* Step 3: View Results */}
+        {projectId && completedCount > 0 && (
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => router.push('/dashboard')}
+            >
+              Back to Dashboard
+            </Button>
+            {completedCount > 0 && (
               <Button
-                onClick={handleUpload}
-                disabled={!file || uploading}
-                className="w-full"
-                size="lg"
+                onClick={() => {
+                  const firstDone = Object.entries(uploads).find(([, u]) => u.status === 'done');
+                  if (firstDone) {
+                    router.push(`/results/${firstDone[1].documentId}?project=${projectId}`);
+                  }
+                }}
               >
-                <Upload className="w-4 h-4 mr-2" />
-                {uploading ? 'Uploading...' : 'Upload & Process'}
+                View Results ({completedCount} document{completedCount > 1 ? 's' : ''})
               </Button>
-            </CardContent>
-          </Card>
+            )}
+          </div>
         )}
       </div>
     </div>
