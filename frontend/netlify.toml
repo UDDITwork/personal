@@ -1,8 +1,0 @@
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-[build]
-  publish = "."
-  command = "echo 'Static site - no build needed'"

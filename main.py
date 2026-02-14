@@ -122,11 +122,17 @@ app = FastAPI(
 )
 
 # CORS middleware for cross-origin requests
+# Use environment-based CORS origins for better security
+cors_origins = ["*"] if settings.environment == "development" else [
+    "http://localhost:3000",  # Next.js dev server
+    "https://personalpe.vercel.app"  # Production domain
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify exact origins
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["*"],
 )
 
