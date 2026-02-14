@@ -41,8 +41,10 @@ export const useAuthStore = create<AuthState>()(
       isTokenExpired: () => {
         const expiresAt = get().expiresAt;
         if (!expiresAt) return true;
-        const expired = new Date(expiresAt) < new Date();
-        console.log('[AUTH] isTokenExpired()', { expiresAt, now: new Date().toISOString(), expired });
+        // Backend sends naive datetime (no timezone suffix) — treat as UTC
+        const utcExpiresAt = expiresAt.endsWith('Z') || expiresAt.includes('+') ? expiresAt : expiresAt + 'Z';
+        const expired = new Date(utcExpiresAt) < new Date();
+        console.log('[AUTH] isTokenExpired()', { expiresAt, utcExpiresAt, now: new Date().toISOString(), expired });
         return expired;
       },
       setHasHydrated: (state) => {
